@@ -5,6 +5,18 @@
 #include <arpa/inet.h>
 #include <pthread.h>
 
+int MAX_CONCURRENT_CONNECTIONS= 3;
+pthread_t threads[3];
+
+void *accettazione_client(void *args){
+    printf("client accettato\n");
+    int *client = (int *)args;
+    sleep(5);
+    printf("connessione terminat");
+    close(*client);
+    pthread_exit(NULL);
+}
+
 
 int main(int argc, char *argv[]){
     //fare funzione per gestione input
@@ -36,7 +48,7 @@ int main(int argc, char *argv[]){
     }
 
     //server inizia l'ascolto
-    if (listen(server_flag, 16) == -1){ //il valore del numero massimo di connessioni è impostato a 16 poichè è il numero di core logici della macchina
+    if (listen(server_flag, MAX_CONCURRENT_CONNECTIONS) == -1){ //il valore del numero massimo di connessioni è impostato a 16 poichè è il numero di core logici della macchina
         perror("errore nell'ascolto");
         close(server_flag);
         exit(1);
@@ -51,8 +63,17 @@ int main(int argc, char *argv[]){
             perror("errore accettazione del client");
             exit(1);
         }
-        printf("client accettato\n");
-        break;
+
+        int *temp_client = &client_flag;
+        pthread_create(&threads[MAX_CONCURRENT_CONNECTIONS], NULL, accettazione_client, temp_client);
+        MAX_CONCURRENT_CONNECTIONS++;
+
+        if (MAX_CONCURRENT_CONNECTIONS >= 3){
+            for (int i = 0; i < MAX_CONCURRENT_CONNECTIONS; i++){
+                pthread_join(threads[MAX_CONCURRENT_CONNECTIONS], NULL);
+            }
+            MAX_CONCURRENT_CONNECTIONS = 0;
+        }
     }
 
     close(server_flag);
