@@ -5,9 +5,13 @@
 #include <getopt.h>
 #include <arpa/inet.h>
 #include <pthread.h>
+#include <errno.h>
+#include <sys/stat.h>
+#include <sys/types.h>
 #include "myServer.h"
 
 server_args FT_ARGS;
+
 
 //LA CONCORRENZA IN TEORIA FUNZIONA MA SAREBBE MEGLIO MODIFICARLA LO FARO? ALLA FINE
 int MAX_CONCURRENT_CONNECTIONS= 3;
@@ -21,8 +25,25 @@ void *accettazione_client(void *args){
     pthread_exit(NULL);
 }
 
-void valida_root(char *root_dir){
+void valida_root(char *root_dir){  //verifica se esiste root directory, altrimenti la crea. assumo che il path può essere o assoluto oppure relativo alla cartella contenente il server
+    struct stat root_stat;
 
+    if (stat(root_dir, &root_stat) == 0){  //verifico se il path esiste
+        if (S_ISDIR(root_stat.st_mode)){ //verifico che il path sia una directory e non un file
+            printf("cartella sorgente localizzata correttamente\n");
+        }else{
+            perror("il path inserito è quello di un file");
+            exit(EXIT_FAILURE);
+        }
+    }else{
+        if(mkdir(root_dir, 0777) == 0){
+            printf("cartella sorgente creata correttamente\n");
+        }else{
+            perror("errore nella creazione della root directory");
+            exit(EXIT_FAILURE);
+        }
+    }
+    printf("root directory inizializzata correttamente\n");
 }
 
 void parse_input(int argc, char **argv){

@@ -9,9 +9,6 @@
 
 client_args THIS_ARGS;
 
-void verify_paths(){
-
-}
 
 void parse_client_input(int argc, char **argv){
     int op_flag = 0;
@@ -55,19 +52,22 @@ void parse_client_input(int argc, char **argv){
         }
     }
 
-    if (o_flag == 0){
-        THIS_ARGS.o_path == NULL;
-    }
     if (op_flag != 1){
         perror("operation missing");
         exit(EXIT_FAILURE);
+    }
+    if (o_flag == 0){
+        if (THIS_ARGS.operation == 'w' || THIS_ARGS.operation == 'r'){
+            THIS_ARGS.o_path = THIS_ARGS.f_path;
+        }else{
+            THIS_ARGS.o_path = NULL;
+        }
     }
     if (a_flag != 1 || p_flag != 1 || f_flag != 1){
         perror("missing operation");
         exit(EXIT_FAILURE);
     }
 
-    verify_paths();
 }
 
 int main(int argc, char *argv[]){
