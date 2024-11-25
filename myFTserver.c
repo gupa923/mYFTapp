@@ -16,10 +16,13 @@ pthread_t threads[3];
 void *accettazione_client(void *args){
     printf("client accettato\n");
     int *client = (int *)args;
-    sleep(5);
-    printf("connessione terminata");
+    printf("connessione terminata\n");
     close(*client);
     pthread_exit(NULL);
+}
+
+void valida_root(char *root_dir){
+
 }
 
 void parse_input(int argc, char **argv){
@@ -51,7 +54,7 @@ void parse_input(int argc, char **argv){
         exit(EXIT_FAILURE);
     }
 
-    //validation root directory
+    valida_root(FT_ARGS.root_directory);
 }
 
 int main(int argc, char *argv[]){

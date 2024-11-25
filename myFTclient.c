@@ -4,12 +4,76 @@
 #include <string.h>
 #include <unistd.h>
 #include <arpa/inet.h>
+#include <getopt.h>
+#include "myClient.h"
 
+client_args THIS_ARGS;
+
+void verify_paths(){
+
+}
+
+void parse_client_input(int argc, char **argv){
+    int op_flag = 0;
+    int a_flag = 0, p_flag = 0, f_flag = 0, o_flag = 0;
+    int opt;
+
+    while ((opt = getopt(argc, argv, "wrla:p:f:o:")) != -1){
+        switch (opt){
+            case 'w':{
+                op_flag++;
+                THIS_ARGS.operation = 'w';
+                break;
+            }case 'r':{
+                op_flag++;
+                THIS_ARGS.operation = 'r';
+                break;
+            }case 'l':{
+                op_flag++;
+                THIS_ARGS.operation = 'l';
+                break;
+            }case 'a':{
+                a_flag++;
+                THIS_ARGS.server_address = optarg;
+                break;
+            }case 'p':{
+                p_flag++;
+                THIS_ARGS.server_port = optarg;
+                break;
+            }case 'f':{
+                f_flag++;
+                THIS_ARGS.f_path = optarg;
+                break;
+            }case 'o':{
+                o_flag++;
+                THIS_ARGS.o_path = optarg;
+                break;
+            }case '?':{
+                perror("invalid operation or missing arguments");
+                exit(EXIT_FAILURE);
+            }
+        }
+    }
+
+    if (o_flag == 0){
+        THIS_ARGS.o_path == NULL;
+    }
+    if (op_flag != 1){
+        perror("operation missing");
+        exit(EXIT_FAILURE);
+    }
+    if (a_flag != 1 || p_flag != 1 || f_flag != 1){
+        perror("missing operation");
+        exit(EXIT_FAILURE);
+    }
+
+    verify_paths();
+}
 
 int main(int argc, char *argv[]){
-
-    char *server_ip = argv[1];
-    int server_port = atoi(argv[2]);
+    parse_client_input(argc, argv);
+    char *server_ip = THIS_ARGS.server_address;
+    int server_port = atoi(THIS_ARGS.server_port);
     int client_flag; 
     struct sockaddr_in server_address;
 
