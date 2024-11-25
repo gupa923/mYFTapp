@@ -6,6 +6,7 @@
 #include <arpa/inet.h>
 #include <getopt.h>
 #include "myClient.h"
+#include "myFTstruct.h"
 
 client_args THIS_ARGS;
 
@@ -74,11 +75,13 @@ int main(int argc, char *argv[]){
     parse_client_input(argc, argv);
     char *server_ip = THIS_ARGS.server_address;
     int server_port = atoi(THIS_ARGS.server_port);
-    int client_flag; 
+    int client_fd; 
     struct sockaddr_in server_address;
+    char first_message[256];
+    sprintf(first_message,"%c:%s:%s",THIS_ARGS.operation, THIS_ARGS.f_path, THIS_ARGS.o_path);
 
     //creazione del client
-    if ((client_flag = socket(AF_INET, SOCK_STREAM, 0)) == -1){
+    if ((client_fd = socket(AF_INET, SOCK_STREAM, 0)) == -1){
         perror("errore creazione del client");
         exit(-1);
     }else{
@@ -91,13 +94,19 @@ int main(int argc, char *argv[]){
     server_address.sin_port = htons(server_port);
 
     //connessione al server
-    if (connect(client_flag, (struct sockaddr * )&server_address, sizeof(server_address))== -1){
+    if (connect(client_fd, (struct sockaddr * )&server_address, sizeof(server_address))== -1){
         perror("connessione fallita");
-        close(client_flag);
+        close(client_fd);
         exit(-1);
     }else{
         printf("connessione al server riuscita\n");
     }
-    close(client_flag);
+
+    if(write(client_fd, &first_message, sizeof(first_message)) < 0){
+        perror("errore invio messaggio");
+        exit(EXIT_FAILURE);
+    }
+    
+    close(client_fd);
     return 0;
 }

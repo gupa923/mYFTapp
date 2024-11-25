@@ -9,6 +9,7 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include "myServer.h"
+#include "myFTstruct.h"
 
 server_args FT_ARGS;
 
@@ -19,9 +20,17 @@ pthread_t threads[3];
 
 void *accettazione_client(void *args){
     printf("client accettato\n");
-    int *client = (int *)args;
+    char message[256];
+    int *client_fd = (int *)args;
+
+    if(read(*client_fd, &message, sizeof(message)) < 0){
+        perror("impossibi leleggere il messaggio");
+        exit(EXIT_FAILURE);
+    }
+    
+    printf("gli argomenti sono: %s\n", message);
     printf("connessione terminata\n");
-    close(*client);
+    close(*client_fd);
     pthread_exit(NULL);
 }
 
@@ -83,7 +92,7 @@ int main(int argc, char *argv[]){
     //fare funzione per gestione input
     int port_num = atoi(FT_ARGS.port);
     char *ip_addr = FT_ARGS.address;
-    int server_flag, client_flag;
+    int server_flag, client_fd;
     struct sockaddr_in server_address, client_address;
     socklen_t client_len = sizeof(client_address);
 
@@ -119,14 +128,14 @@ int main(int argc, char *argv[]){
 
     while(1){
         //accetto la connessione del server
-        client_flag = accept(server_flag, (struct sockaddr *)&client_address, &client_len);
-        if (client_flag == -1){
+        client_fd = accept(server_flag, (struct sockaddr *)&client_address, &client_len);
+        if (client_fd == -1){
             perror("errore accettazione del client");
             exit(EXIT_FAILURE);
         }
 
-        int *temp_client = &client_flag;
-        pthread_create(&threads[MAX_CONCURRENT_CONNECTIONS], NULL, accettazione_client, temp_client);
+        int *temp_client = &client_fd;
+        pthread_create(&threads[MAX_CONCURRENT_CONNECTIONS], NULL, accettazione_client,(void *) temp_client);
         MAX_CONCURRENT_CONNECTIONS++;
 
         if (MAX_CONCURRENT_CONNECTIONS >= 3){
