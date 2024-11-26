@@ -9,14 +9,7 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include "myServer.h"
-#include "myFTstruct.h"
 
-server_args FT_ARGS;
-
-
-//LA CONCORRENZA IN TEORIA FUNZIONA MA SAREBBE MEGLIO MODIFICARLA LO FARO? ALLA FINE
-int MAX_CONCURRENT_CONNECTIONS= 3;
-pthread_t threads[3];
 
 void *accettazione_client(void *args){
     printf("client accettato\n");

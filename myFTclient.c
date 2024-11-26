@@ -6,9 +6,6 @@
 #include <arpa/inet.h>
 #include <getopt.h>
 #include "myClient.h"
-#include "myFTstruct.h"
-
-client_args THIS_ARGS;
 
 
 void parse_client_input(int argc, char **argv){
