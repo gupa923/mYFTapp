@@ -10,18 +10,58 @@
 #include <sys/types.h>
 #include "myServer.h"
 
+void get_client_request(char *content, client_request *request){
+    char *loca_copy = malloc(sizeof(char)*strlen(content));
+    strcpy(loca_copy, content);
+    char **save_ptr;
+    char *token = __strtok_r(loca_copy, ":", &loca_copy);
+    int i = 0;
+    while(token != NULL){
+        if (i == 0){
+            request->op_tag = token[0];
+            token = __strtok_r(NULL, ":", &loca_copy);
+            i++;
+        }else if (i == 1){
+            strcpy(request->f_path, token);
+            token = __strtok_r(NULL, ":", &loca_copy);
+            i++;
+        }else{
+            strcpy(request->o_path, token);
+            token = __strtok_r(NULL, ":", &loca_copy);
+            i++;
+        }
+    }
+    free(loca_copy);
+    //NON HO BISOGNO DI CONTROLLARE SE LA LETTURA E' aANDATA A BUON FINE POICHÈ HO LA GARANZIA CHE IL CLIENT NON SI CONNETTA SE LA RICHIESTA E' SBAGLIATA
+}
 
 void *accettazione_client(void *args){
     printf("client accettato\n");
     char message[256];
     int *client_fd = (int *)args;
+    client_request request;
 
     if(read(*client_fd, &message, sizeof(message)) < 0){
         perror("impossibi leleggere il messaggio");
         exit(EXIT_FAILURE);
     }
+
     
-    printf("gli argomenti sono: %s\n", message);
+    get_client_request(message, &request);
+    printf("lettura avenuta correttamente\n");
+    printf("gli argomenti sono: %c, %s, %s\n", request.op_tag, request.f_path, request.o_path);
+
+    switch(request.op_tag){
+        case 'w':
+            //manage write //nella scrittura devo controllare o_path se esiste 
+            break;
+        case 'r':
+            //manage read //nella lettura devo controllare f_path se esiste
+            break;
+        case 'l':
+            //manage list //nel list devo controllare se esiste f_path
+            break;
+    }
     printf("connessione terminata\n");
     close(*client_fd);
     pthread_exit(NULL);

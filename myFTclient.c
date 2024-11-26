@@ -58,7 +58,8 @@ void parse_client_input(int argc, char **argv){
         if (THIS_ARGS.operation == 'w' || THIS_ARGS.operation == 'r'){
             THIS_ARGS.o_path = THIS_ARGS.f_path;
         }else{
-            THIS_ARGS.o_path = NULL;
+            //NO_O_PATH viene inserito solo in caso l'opzione sia la l
+            THIS_ARGS.o_path = NO_O_PATH;
         }
     }
     if (a_flag != 1 || p_flag != 1 || f_flag != 1){
@@ -101,6 +102,13 @@ int main(int argc, char *argv[]){
 
     if(write(client_fd, &first_message, sizeof(first_message)) < 0){
         perror("errore invio messaggio");
+        exit(EXIT_FAILURE);
+    }
+
+    int *request_response;
+    if (read(client_fd, request_response, sizeof(request_response)));
+    if (request_response != 0){
+        perror("la richiesta non è andata a buon fine");
         exit(EXIT_FAILURE);
     }
     

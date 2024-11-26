@@ -17,6 +17,8 @@ typedef struct client_args{
 
 client_args THIS_ARGS;
 
+char *NO_O_PATH = "____";
+
 void parse_client_input(int argc, char **argv);
 
 void parse_client_input(int argc, char **argv);

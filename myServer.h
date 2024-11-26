@@ -12,6 +12,12 @@ typedef struct server_args {
     char *root_directory;
 }server_args;
 
+typedef struct client_request{
+    char op_tag;
+    char *f_path;
+    char *o_path;
+}client_request;
+
 
 server_args FT_ARGS;
 
@@ -19,6 +25,7 @@ server_args FT_ARGS;
 int MAX_CONCURRENT_CONNECTIONS= 3;
 pthread_t threads[3];
 
+char *NO_O_PATH = "____";
 
 void *accettazione_client(void *args);
 
