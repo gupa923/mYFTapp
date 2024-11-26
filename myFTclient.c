@@ -105,12 +105,6 @@ int main(int argc, char *argv[]){
         exit(EXIT_FAILURE);
     }
 
-    int *request_response;
-    if (read(client_fd, request_response, sizeof(request_response)));
-    if (request_response != 0){
-        perror("la richiesta non è andata a buon fine");
-        exit(EXIT_FAILURE);
-    }
     
     close(client_fd);
     return 0;
