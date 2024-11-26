@@ -7,6 +7,15 @@
 #include <getopt.h>
 #include "myClient.h"
 
+void do_write(int client_fd){
+    /**
+     * @todo controllare che il path indicato in f_path esista, in caso contrario invia messaggio al server e interrompi connessione
+     * @todo leggere il file se esiste e inviare il contenuto al server
+     * @todo attendere la risposta del server
+     * @todo verificare se la richiesta ha avuto successo o meno
+     */
+    
+}
 
 void parse_client_input(int argc, char **argv){
     int op_flag = 0;
@@ -107,7 +116,7 @@ int main(int argc, char *argv[]){
 
     switch(THIS_ARGS.operation){
         case 'w':{
-            //manage w
+            do_write(client_fd);
             break;
         }case 'r':{
             //manage r

@@ -10,6 +10,15 @@
 #include <sys/types.h>
 #include "myServer.h"
 
+void do_write(int *client_fd, client_request *request){
+    /**
+     * @todo ricevere il messaggio del client con il contenuto da scrivere
+     * @todo controllare il path di destinazione (vedere se è stato indicato il percorso di un file), vedere se il file esiste già, altrimenti crealo
+     * @todo trasferisci il contenuto del messaggio nel file
+     * @todo inviare risposta per dire se l'operazione ha avuto successo o meno
+     */
+}
+
 void get_client_request(char *content, client_request *request){
     char *loca_copy = malloc(sizeof(char)*strlen(content));
     strcpy(loca_copy, content);
@@ -53,7 +62,7 @@ void *accettazione_client(void *args){
 
     switch(request.op_tag){
         case 'w':{
-            //manage write //nella scrittura devo controllare o_path se esiste 
+            do_write(client_fd, &request);
             break;
         }case 'r':{
             //manage read //nella lettura devo controllare f_path se esiste
