@@ -105,7 +105,18 @@ int main(int argc, char *argv[]){
         exit(EXIT_FAILURE);
     }
 
-    
+    switch(THIS_ARGS.operation){
+        case 'w':{
+            //manage w
+            break;
+        }case 'r':{
+            //manage r
+            break;
+        }case 'l':{
+            //manage list
+            break;
+        }
+    }
     close(client_fd);
     return 0;
 }

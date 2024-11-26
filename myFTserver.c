@@ -31,7 +31,6 @@ void get_client_request(char *content, client_request *request){
             i++;
         }
     }
-    free(loca_copy);
     //NON HO BISOGNO DI CONTROLLARE SE LA LETTURA E' aANDATA A BUON FINE POICHÈ HO LA GARANZIA CHE IL CLIENT NON SI CONNETTA SE LA RICHIESTA E' SBAGLIATA
 }
 
@@ -43,7 +42,8 @@ void *accettazione_client(void *args){
 
     if(read(*client_fd, &message, sizeof(message)) < 0){
         perror("impossibi leleggere il messaggio");
-        exit(EXIT_FAILURE);
+        close(*client_fd);
+        pthread_exit(NULL);
     }
 
     
@@ -52,16 +52,19 @@ void *accettazione_client(void *args){
     printf("gli argomenti sono: %c, %s, %s\n", request.op_tag, request.f_path, request.o_path);
 
     switch(request.op_tag){
-        case 'w':
+        case 'w':{
             //manage write //nella scrittura devo controllare o_path se esiste 
             break;
-        case 'r':
+        }case 'r':{
             //manage read //nella lettura devo controllare f_path se esiste
             break;
-        case 'l':
+        }case 'l':{
             //manage list //nel list devo controllare se esiste f_path
             break;
+        }
     }
+
+
     printf("connessione terminata\n");
     close(*client_fd);
     pthread_exit(NULL);
@@ -164,7 +167,6 @@ int main(int argc, char *argv[]){
         client_fd = accept(server_flag, (struct sockaddr *)&client_address, &client_len);
         if (client_fd == -1){
             perror("errore accettazione del client");
-            exit(EXIT_FAILURE);
         }
 
         int *temp_client = &client_fd;
