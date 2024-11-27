@@ -5,7 +5,68 @@
 #include <unistd.h>
 #include <arpa/inet.h>
 #include <getopt.h>
+#include <sys/stat.h>
+#include <sys/types.h>
 #include "myClient.h"
+
+void read_txt_file(char *path, int client_fd){
+    int nb_read;
+    FILE *file = fopen(path, "r");
+    if (file == NULL){
+        W_REQUEST.content_size = 0;
+        //invia messaggio di impossibilità di leggere
+    }
+    //calcolo dimensione del file in byte
+    fseek(file, 0, SEEK_END);
+    W_REQUEST.content_size = ftell(file);
+    rewind(file);
+
+    char w_header[256];
+    sprintf(w_header, "%d:%ld", W_REQUEST.flag, W_REQUEST.content_size);
+    printf("%s\n", w_header);
+    if(write(client_fd, &w_header, sizeof(w_header)) < 0){
+        perror("write error");
+    }
+
+    //procedo a leggere il contenuto del file
+    //char *content = (char *)malloc(((W_REQUEST.content_size+1) * sizeof(char)));
+    char buffer[1024];
+    while ((nb_read = fread(buffer, 1, sizeof(buffer), file)) > 0){
+        printf("%s", buffer);
+        if (send(client_fd, buffer, nb_read, 0) == -1){
+            perror("send non andata a buon fine");
+        }
+    }
+    printf("\n");
+
+    fclose(file);
+}
+
+//è sbagliat, non va bene
+int check_path(char *path){
+    //assumo che vengano inseriti o path relativi alla directory attuale o path assoluti
+
+    //prima di tutto vedo se il path esiste
+    struct stat file_stat;
+
+    if (stat(path, &file_stat) != 0){
+        perror("non è un file");
+        return 0; //non è un path valido
+    }
+
+    if (!S_ISREG(file_stat.st_mode)){
+        perror("non è un file regolare");
+        return 0; //non è un file regolare
+    }
+
+    //controllo sia un file .txt
+    char *ext = strrchr(path, '.'); //restituisce il puntatore all'ultima occorrenza di ".", così facendo ricavo l'estensione del file
+    if(ext != NULL && strcmp(ext, ".txt") == 0){
+        return 1; //è un file txt
+    }
+    perror("non è un file txt");
+    return 0;
+}
 
 void do_write(int client_fd){
     /**
@@ -13,8 +74,19 @@ void do_write(int client_fd){
      * @todo leggere il file se esiste e inviare il contenuto al server
      * @todo attendere la risposta del server
      * @todo verificare se la richiesta ha avuto successo o meno
+     * viene ammessa solo la lettura di file .txt
+     */
+
+    /**
+     * L'idea è quella di creare una struct in cui si mettono i dati della richiesta, 
+     * che vengono impostati ad un valore specifico se la richiesta deve essere abortita
      */
     
+    W_REQUEST.flag = check_path(THIS_ARGS.f_path);
+    
+    
+    read_txt_file(THIS_ARGS.f_path, client_fd);
+
 }
 
 void parse_client_input(int argc, char **argv){

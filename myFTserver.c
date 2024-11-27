@@ -10,33 +10,116 @@
 #include <sys/types.h>
 #include "myServer.h"
 
+void get_write_header(write_header *header, char *h_string){
+    char *local_copy = malloc(sizeof(char)*strlen(h_string));
+    strcpy(local_copy, h_string);
+    char *token = __strtok_r(local_copy, ":", &local_copy);
+    int i = 0;
+    while(token != NULL){
+        if (i == 0){
+            header->flag = atoi(token);
+            token = __strtok_r(NULL, ":", &local_copy);
+            i++;
+        }else if (i == 1){
+            header->content_size = strtol(token, NULL, 10);
+            token = __strtok_r(NULL, ":", &local_copy);
+            i++;
+        }
+    }
+}
+
+int verify_wpath(char *o_path){
+    //prima vedo se il path fornito è quello di un file txt
+    char *ext = strrchr(o_path, '.');
+    if (strcmp(ext, ".txt") != 0){
+        return 0; //il path fornito non è quello di un file
+    }
+
+    //visto che il path è quello di un file .txt vedo se le cartelle precedenti esistono e in caso contrario le creo
+    char *temp = (char *)malloc((strlen(o_path) + 1) * sizeof(char));
+    strcpy(temp, o_path);
+    char *save_ptr;
+    char *token = __strtok_r(temp, "/", &save_ptr);
+    char current_dir[1024];
+    while (token != NULL){
+        //assemblo la directori da analizzare con quelle già analizzateper costruire il path corretto
+        strcat(current_dir, token);
+        strcat(current_dir, "/");
+
+        //controllo se mi trovo all'ultimo token, ovvero quello che corrisponde al nome del file. Se è l'ultimo allora next_token sarà NULL
+        char *next_token = __strtok_r(NULL, "/", &save_ptr);
+        if (next_token != NULL){
+            if (access(current_dir, F_OK) != 0){ //verifico se la directory corrente esiste ( == 0). Se non esiste la creo
+                if (mkdir(current_dir, 0777) != 0){ //creo la directory
+                    printf("%s\n", current_dir);
+                    perror("errore nella creazione della directory di destinazione");
+                    return 0;
+                }else{
+                    perror("directory creata");
+                }
+            }else{
+                perror("directory già esistente");
+            }
+        }
+        token = next_token;
+    }
+    free(temp);
+    return 1;
+}
+
 void do_write(int *client_fd, client_request *request){
-    /**
-     * @todo ricevere il messaggio del client con il contenuto da scrivere
-     * @todo controllare il path di destinazione (vedere se è stato indicato il percorso di un file), vedere se il file esiste già, altrimenti crealo
-     * @todo trasferisci il contenuto del messaggio nel file
-     * @todo inviare risposta per dire se l'operazione ha avuto successo o meno
-     */
+    char h_string[256];
+    write_header header;
+    read(*client_fd, &h_string, sizeof(h_string));
+    printf("%s\n", h_string);
+    get_write_header(&header, h_string);
+
+    char *temp = (char *)malloc(strlen(request->o_path) * sizeof(char));
+    strcpy(temp, request->o_path);
+    sprintf(request->o_path, "%s%s", FT_ARGS.root_directory, temp);
+    int flag = verify_wpath(request->o_path);
+
+    //manca il messaggio al client per dirgli di procedere all'invio dei dati
+    
+
+    int bytes_recived;
+    char buffer[1024];
+    char *content = (char *)malloc(header.content_size);
+    FILE *fp = fopen(request->o_path, "w");
+    if (fp == NULL){
+        //do stuff
+    }
+    while(bytes_recived = recv(*client_fd, buffer, sizeof(buffer), 0) > 0){
+        strcat(content, buffer);
+    }
+
+    char respone[] = "1";
+    if (fputs(content, fp) == EOF){
+        perror("errore di scrittura");
+        respone[0] = '0';
+    }
+    fclose(fp);
+    //codice per indicare che la richiesta è andata a buon 
+    
 }
 
 void get_client_request(char *content, client_request *request){
-    char *loca_copy = malloc(sizeof(char)*strlen(content));
-    strcpy(loca_copy, content);
-    char **save_ptr;
-    char *token = __strtok_r(loca_copy, ":", &loca_copy);
+    char *local_copy = malloc(sizeof(char)*strlen(content));
+    strcpy(local_copy, content);
+    char *token = __strtok_r(local_copy, ":", &local_copy);
     int i = 0;
     while(token != NULL){
         if (i == 0){
             request->op_tag = token[0];
-            token = __strtok_r(NULL, ":", &loca_copy);
+            token = __strtok_r(NULL, ":", &local_copy);
             i++;
         }else if (i == 1){
             strcpy(request->f_path, token);
-            token = __strtok_r(NULL, ":", &loca_copy);
+            token = __strtok_r(NULL, ":", &local_copy);
             i++;
         }else{
             strcpy(request->o_path, token);
-            token = __strtok_r(NULL, ":", &loca_copy);
+            token = __strtok_r(NULL, ":", &local_copy);
             i++;
         }
     }
