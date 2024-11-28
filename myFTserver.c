@@ -86,11 +86,21 @@ void do_write(int *client_fd, client_request *request){
     int flag = verify_wpath(request->o_path);
 
     //manca il messaggio al client per dirgli di procedere all'invio dei dati
-    
+    char sflag[2];
+    sprintf(sflag, "%d", flag);
+    write(*client_fd, sflag, sizeof(sflag));
+
+    if (flag == 0){
+        perror("percorso non valido");
+        return;
+    }
 
     int bytes_recived;
-    char buffer[1024];
+    char buffer[1024] = "";
     char *content = (char *)malloc(header.content_size);
+
+    memset(content, 0, header.content_size * sizeof(char));
+    printf("buffer %s\n", buffer);
     if (content == NULL){
         perror("cosa è successo qui");
         return;
@@ -101,6 +111,7 @@ void do_write(int *client_fd, client_request *request){
     }
     while(bytes_recived = recv(*client_fd, buffer, sizeof(buffer), 0) > 0){
         strcat(content, buffer);
+        printf("%s\n", content);
     }
 
     char respone[] = "1";
@@ -108,6 +119,7 @@ void do_write(int *client_fd, client_request *request){
         perror("errore di scrittura");
         respone[0] = '0';
     }
+    free(content);
     fclose(fp);
     //codice per indicare che la richiesta è andata a buon 
     

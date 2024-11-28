@@ -1,6 +1,5 @@
-�RNciao
+ciao
 allora questa
 è 
 una prova
 che non funzionerà
-t

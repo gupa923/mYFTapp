@@ -1,4 +1,4 @@
-`ciao
+ciao
 allora questa
 è 
 una prova

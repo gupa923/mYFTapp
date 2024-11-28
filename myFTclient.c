@@ -28,9 +28,16 @@ void read_txt_file(char *path, int client_fd){
         perror("write error");
     }
 
+    char flag[2];
+    read(client_fd, flag, sizeof(flag));
+
+    if (flag[0] == '0'){
+        perror("path inserito non valido");
+        return;
+    }
     //procedo a leggere il contenuto del file
     //char *content = (char *)malloc(((W_REQUEST.content_size+1) * sizeof(char)));
-    char buffer[1024];
+    char buffer[1024] = "";
     while ((nb_read = fread(buffer, 1, sizeof(buffer), file)) > 0){
         printf("%s", buffer);
         if (send(client_fd, buffer, nb_read, 0) == -1){
