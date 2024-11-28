@@ -117,20 +117,20 @@ void get_client_request(char *content, client_request *request){
     char *local_copy = malloc(sizeof(char)*strlen(content));
     char *save_ptr;
     strcpy(local_copy, content);
-    char *token = __strtok_r(local_copy, ":", &save_ptr);
+    char *token = strtok_r(local_copy, ":", &save_ptr);
     int i = 0;
     while(token != NULL){
         if (i == 0){
             request->op_tag = token[0];
-            token = __strtok_r(NULL, ":", &save_ptr);
+            token = strtok_r(NULL, ":", &save_ptr);
             i++;
         }else if (i == 1){
             strcpy(request->f_path, token);
-            token = __strtok_r(NULL, ":", &save_ptr);
+            token = strtok_r(NULL, ":", &save_ptr);
             i++;
         }else{
             strcpy(request->o_path, token);
-            token = __strtok_r(NULL, ":", &save_ptr);
+            token = strtok_r(NULL, ":", &save_ptr);
             i++;
         }
     }
