@@ -13,16 +13,16 @@
 void get_write_header(write_header *header, char *h_string){
     char *local_copy = malloc(sizeof(char)*strlen(h_string));
     strcpy(local_copy, h_string);
-    char *token = __strtok_r(local_copy, ":", &local_copy);
+    char *token = strtok_r(local_copy, ":", &local_copy);
     int i = 0;
     while(token != NULL){
         if (i == 0){
             header->flag = atoi(token);
-            token = __strtok_r(NULL, ":", &local_copy);
+            token = strtok_r(NULL, ":", &local_copy);
             i++;
         }else if (i == 1){
             header->content_size = strtol(token, NULL, 10);
-            token = __strtok_r(NULL, ":", &local_copy);
+            token = strtok_r(NULL, ":", &local_copy);
             i++;
         }
     }
@@ -37,17 +37,23 @@ int verify_wpath(char *o_path){
 
     //visto che il path è quello di un file .txt vedo se le cartelle precedenti esistono e in caso contrario le creo
     char *temp = (char *)malloc((strlen(o_path) + 1) * sizeof(char));
+    if (temp == NULL){
+        perror("cosa è successo?");
+        return 0;
+    }
     strcpy(temp, o_path);
+    printf("%s\n", temp);
     char *save_ptr;
-    char *token = __strtok_r(temp, "/", &save_ptr);
-    char current_dir[1024];
+    char *token = strtok_r(temp, "/", &save_ptr);
+    printf("token %s\n", token);
+    char current_dir[1024] = "";
     while (token != NULL){
         //assemblo la directori da analizzare con quelle già analizzateper costruire il path corretto
         strcat(current_dir, token);
         strcat(current_dir, "/");
-
+        printf("%s\n", current_dir);
         //controllo se mi trovo all'ultimo token, ovvero quello che corrisponde al nome del file. Se è l'ultimo allora next_token sarà NULL
-        char *next_token = __strtok_r(NULL, "/", &save_ptr);
+        char *next_token = strtok_r(NULL, "/", &save_ptr);
         if (next_token != NULL){
             if (access(current_dir, F_OK) != 0){ //verifico se la directory corrente esiste ( == 0). Se non esiste la creo
                 if (mkdir(current_dir, 0777) != 0){ //creo la directory
@@ -85,6 +91,10 @@ void do_write(int *client_fd, client_request *request){
     int bytes_recived;
     char buffer[1024];
     char *content = (char *)malloc(header.content_size);
+    if (content == NULL){
+        perror("cosa è successo qui");
+        return;
+    }
     FILE *fp = fopen(request->o_path, "w");
     if (fp == NULL){
         //do stuff
@@ -105,24 +115,26 @@ void do_write(int *client_fd, client_request *request){
 
 void get_client_request(char *content, client_request *request){
     char *local_copy = malloc(sizeof(char)*strlen(content));
+    char *save_ptr;
     strcpy(local_copy, content);
-    char *token = __strtok_r(local_copy, ":", &local_copy);
+    char *token = __strtok_r(local_copy, ":", &save_ptr);
     int i = 0;
     while(token != NULL){
         if (i == 0){
             request->op_tag = token[0];
-            token = __strtok_r(NULL, ":", &local_copy);
+            token = __strtok_r(NULL, ":", &save_ptr);
             i++;
         }else if (i == 1){
             strcpy(request->f_path, token);
-            token = __strtok_r(NULL, ":", &local_copy);
+            token = __strtok_r(NULL, ":", &save_ptr);
             i++;
         }else{
             strcpy(request->o_path, token);
-            token = __strtok_r(NULL, ":", &local_copy);
+            token = __strtok_r(NULL, ":", &save_ptr);
             i++;
         }
     }
+    free(local_copy);
     //NON HO BISOGNO DI CONTROLLARE SE LA LETTURA E' aANDATA A BUON FINE POICHÈ HO LA GARANZIA CHE IL CLIENT NON SI CONNETTA SE LA RICHIESTA E' SBAGLIATA
 }
 
