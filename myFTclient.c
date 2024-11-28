@@ -11,9 +11,17 @@
 
 void read_txt_file(char *path, int client_fd){
     int nb_read;
+    char w_header[256];
     FILE *file = fopen(path, "r");
     if (file == NULL){
         W_REQUEST.content_size = 0;
+        sprintf(w_header, "%d:%ld", W_REQUEST.flag, W_REQUEST.content_size);
+        printf("%s\n", w_header);
+        if(write(client_fd, &w_header, sizeof(w_header)) < 0){
+            perror("write error");
+            return;
+        }
+        return;
         //invia messaggio di impossibilità di leggere
     }
     //calcolo dimensione del file in byte
@@ -21,11 +29,12 @@ void read_txt_file(char *path, int client_fd){
     W_REQUEST.content_size = ftell(file);
     rewind(file);
 
-    char w_header[256];
+    
     sprintf(w_header, "%d:%ld", W_REQUEST.flag, W_REQUEST.content_size);
     printf("%s\n", w_header);
     if(write(client_fd, &w_header, sizeof(w_header)) < 0){
         perror("write error");
+        return;
     }
 
     char flag[2];
@@ -44,9 +53,10 @@ void read_txt_file(char *path, int client_fd){
             perror("send non andata a buon fine");
         }
     }
-    printf("\n");
-
     fclose(file);
+    printf("ciao\n");
+
+    printf("scrittura completa con successo\n");
 }
 
 //è sbagliat, non va bene
@@ -90,7 +100,7 @@ void do_write(int client_fd){
      */
     
     W_REQUEST.flag = check_path(THIS_ARGS.f_path);
-    
+
     
     read_txt_file(THIS_ARGS.f_path, client_fd);
 
@@ -205,6 +215,7 @@ int main(int argc, char *argv[]){
             break;
         }
     }
+    printf("connessione terminata\n");
     close(client_fd);
     return 0;
 }

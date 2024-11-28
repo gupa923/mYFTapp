@@ -13,16 +13,17 @@
 void get_write_header(write_header *header, char *h_string){
     char *local_copy = malloc(sizeof(char)*strlen(h_string));
     strcpy(local_copy, h_string);
-    char *token = strtok_r(local_copy, ":", &local_copy);
+    char *save_ptr;
+    char *token = strtok_r(local_copy, ":", &save_ptr);
     int i = 0;
     while(token != NULL){
         if (i == 0){
             header->flag = atoi(token);
-            token = strtok_r(NULL, ":", &local_copy);
+            token = strtok_r(NULL, ":", &save_ptr);
             i++;
         }else if (i == 1){
             header->content_size = strtol(token, NULL, 10);
-            token = strtok_r(NULL, ":", &local_copy);
+            token = strtok_r(NULL, ":", &save_ptr);
             i++;
         }
     }
@@ -31,7 +32,7 @@ void get_write_header(write_header *header, char *h_string){
 int verify_wpath(char *o_path){
     //prima vedo se il path fornito è quello di un file txt
     char *ext = strrchr(o_path, '.');
-    if (strcmp(ext, ".txt") != 0){
+    if (ext == NULL || strcmp(ext, ".txt") != 0){
         return 0; //il path fornito non è quello di un file
     }
 
@@ -76,15 +77,21 @@ int verify_wpath(char *o_path){
 void do_write(int *client_fd, client_request *request){
     char h_string[256];
     write_header header;
-    read(*client_fd, &h_string, sizeof(h_string));
+    if (read(*client_fd, &h_string, sizeof(h_string)) < 0){
+        perror("impossibile ricevere i dati dal client");
+        return;
+    }
     printf("%s\n", h_string);
     get_write_header(&header, h_string);
-
+    if (header.flag == 0){
+        perror("impossibile procedere con la scrittura");
+        return;
+    }
     char *temp = (char *)malloc(strlen(request->o_path) * sizeof(char));
     strcpy(temp, request->o_path);
     sprintf(request->o_path, "%s%s", FT_ARGS.root_directory, temp);
     int flag = verify_wpath(request->o_path);
-
+    free(temp);
     //manca il messaggio al client per dirgli di procedere all'invio dei dati
     char sflag[2];
     sprintf(sflag, "%d", flag);
@@ -107,22 +114,25 @@ void do_write(int *client_fd, client_request *request){
     }
     FILE *fp = fopen(request->o_path, "w");
     if (fp == NULL){
-        //do stuff
+        perror("impossibile aprire il file");
+        return;
     }
     while(bytes_recived = recv(*client_fd, buffer, sizeof(buffer), 0) > 0){
         strcat(content, buffer);
         printf("%s\n", content);
     }
+    printf("ciao\n");
 
-    char respone[] = "1";
     if (fputs(content, fp) == EOF){
         perror("errore di scrittura");
-        respone[0] = '0';
+        return;
     }
     free(content);
     fclose(fp);
+    printf("C fa schifo \n");
+
     //codice per indicare che la richiesta è andata a buon 
-    
+    printf("richiesta completata con successo\n");
 }
 
 void get_client_request(char *content, client_request *request){
