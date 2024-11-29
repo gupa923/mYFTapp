@@ -16,7 +16,6 @@ void read_txt_file(char *path, int client_fd){
     if (file == NULL){
         W_REQUEST.content_size = 0;
         sprintf(w_header, "%d:%ld", W_REQUEST.flag, W_REQUEST.content_size);
-        printf("%s\n", w_header);
         if(write(client_fd, &w_header, sizeof(w_header)) < 0){
             perror("write error");
             return;
@@ -31,14 +30,16 @@ void read_txt_file(char *path, int client_fd){
 
     
     sprintf(w_header, "%d:%ld", W_REQUEST.flag, W_REQUEST.content_size);
-    printf("%s\n", w_header);
     if(write(client_fd, &w_header, sizeof(w_header)) < 0){
         perror("write error");
         return;
     }
 
     char flag[2];
-    read(client_fd, flag, sizeof(flag));
+    if (read(client_fd, flag, sizeof(flag)) < 0){
+        perror("impossibile ricevere i dati");
+        return;
+    }
 
     if (flag[0] == '0'){
         perror("path inserito non valido");
@@ -48,14 +49,25 @@ void read_txt_file(char *path, int client_fd){
     //char *content = (char *)malloc(((W_REQUEST.content_size+1) * sizeof(char)));
     char buffer[1024] = "";
     while ((nb_read = fread(buffer, 1, sizeof(buffer), file)) > 0){
-        printf("%s", buffer);
-        if (send(client_fd, buffer, nb_read, 0) == -1){
+        if (write(client_fd, buffer, nb_read) == -1){
             perror("send non andata a buon fine");
         }
     }
     fclose(file);
-    printf("ciao\n");
 
+    //mando un segnale di interruzione delle scrittura
+    shutdown(client_fd, SHUT_WR);
+
+    char response[2];
+    if (read(client_fd, response, sizeof(response)) < 0){
+        perror("impossibile ricevere risposta dal server");
+        return;
+    }
+
+    if (response[0] == '0'){
+        perror("impossibile completare la scrittura");
+        return;
+    }
     printf("scrittura completa con successo\n");
 }
 
@@ -101,7 +113,6 @@ void do_write(int client_fd){
     
     W_REQUEST.flag = check_path(THIS_ARGS.f_path);
 
-    
     read_txt_file(THIS_ARGS.f_path, client_fd);
 
 }

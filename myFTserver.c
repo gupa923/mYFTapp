@@ -39,33 +39,29 @@ int verify_wpath(char *o_path){
     //visto che il path è quello di un file .txt vedo se le cartelle precedenti esistono e in caso contrario le creo
     char *temp = (char *)malloc((strlen(o_path) + 1) * sizeof(char));
     if (temp == NULL){
-        perror("cosa è successo?");
+        perror("impossibile allocare la memoria");
         return 0;
     }
     strcpy(temp, o_path);
-    printf("%s\n", temp);
     char *save_ptr;
     char *token = strtok_r(temp, "/", &save_ptr);
-    printf("token %s\n", token);
     char current_dir[1024] = "";
     while (token != NULL){
         //assemblo la directori da analizzare con quelle già analizzateper costruire il path corretto
         strcat(current_dir, token);
         strcat(current_dir, "/");
-        printf("%s\n", current_dir);
         //controllo se mi trovo all'ultimo token, ovvero quello che corrisponde al nome del file. Se è l'ultimo allora next_token sarà NULL
         char *next_token = strtok_r(NULL, "/", &save_ptr);
         if (next_token != NULL){
             if (access(current_dir, F_OK) != 0){ //verifico se la directory corrente esiste ( == 0). Se non esiste la creo
                 if (mkdir(current_dir, 0777) != 0){ //creo la directory
-                    printf("%s\n", current_dir);
                     perror("errore nella creazione della directory di destinazione");
                     return 0;
                 }else{
-                    perror("directory creata");
+                    //se entra qui vuol dire che la directory è stata creata con successo
                 }
             }else{
-                perror("directory già esistente");
+                //se entra qui vuol dire che la directory già esisteva
             }
         }
         token = next_token;
@@ -81,7 +77,6 @@ void do_write(int *client_fd, client_request *request){
         perror("impossibile ricevere i dati dal client");
         return;
     }
-    printf("%s\n", h_string);
     get_write_header(&header, h_string);
     if (header.flag == 0){
         perror("impossibile procedere con la scrittura");
@@ -95,7 +90,10 @@ void do_write(int *client_fd, client_request *request){
     //manca il messaggio al client per dirgli di procedere all'invio dei dati
     char sflag[2];
     sprintf(sflag, "%d", flag);
-    write(*client_fd, sflag, sizeof(sflag));
+    if (write(*client_fd, sflag, sizeof(sflag)) < 0){
+        perror("impossibile inviare dati");
+        return;
+    }
 
     if (flag == 0){
         perror("percorso non valido");
@@ -105,32 +103,39 @@ void do_write(int *client_fd, client_request *request){
     int bytes_recived;
     char buffer[1024] = "";
     char *content = (char *)malloc(header.content_size);
-
-    memset(content, 0, header.content_size * sizeof(char));
-    printf("buffer %s\n", buffer);
     if (content == NULL){
-        perror("cosa è successo qui");
+        perror("impossibile allocare la memoria");
         return;
     }
+    memset(content, 0, header.content_size * sizeof(char));
+
     FILE *fp = fopen(request->o_path, "w");
     if (fp == NULL){
         perror("impossibile aprire il file");
         return;
     }
-    while(bytes_recived = recv(*client_fd, buffer, sizeof(buffer), 0) > 0){
+    while(bytes_recived = read(*client_fd, buffer, sizeof(buffer)) > 0){
         strcat(content, buffer);
-        printf("%s\n", content);
     }
-    printf("ciao\n");
 
+    char response[] = "1";
     if (fputs(content, fp) == EOF){
         perror("errore di scrittura");
+        response[0] = '0';
         return;
     }
     free(content);
     fclose(fp);
-    printf("C fa schifo \n");
 
+    if (write(*client_fd, response, sizeof(response)) < 0){
+        perror("impossibile inviare una risposta al client");
+        return;
+    }
+
+    if (response[0] == '0'){
+        perror("impossibile completare la scrittura");
+        return;
+    }
     //codice per indicare che la richiesta è andata a buon 
     printf("richiesta completata con successo\n");
 }
@@ -167,15 +172,14 @@ void *accettazione_client(void *args){
     client_request request;
 
     if(read(*client_fd, &message, sizeof(message)) < 0){
-        perror("impossibi leleggere il messaggio");
+        perror("impossibi leleggere la richiesta");
         close(*client_fd);
         pthread_exit(NULL);
     }
 
     
     get_client_request(message, &request);
-    printf("lettura avenuta correttamente\n");
-    printf("gli argomenti sono: %c, %s, %s\n", request.op_tag, request.f_path, request.o_path);
+    printf("lettura della richiesta avvenuta correttamente\n");
 
     switch(request.op_tag){
         case 'w':{
@@ -293,6 +297,7 @@ int main(int argc, char *argv[]){
         client_fd = accept(server_flag, (struct sockaddr *)&client_address, &client_len);
         if (client_fd == -1){
             perror("errore accettazione del client");
+            continue;
         }
 
         int *temp_client = &client_fd;
