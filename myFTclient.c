@@ -5,8 +5,117 @@
 #include <unistd.h>
 #include <arpa/inet.h>
 #include <getopt.h>
+#include <sys/stat.h>
+#include <sys/types.h>
 #include "myClient.h"
 
+void read_txt_file(char *path, int client_fd){
+    int nb_read;
+    char w_header[256];
+    FILE *file = fopen(path, "r");
+    if (file == NULL){
+        W_REQUEST.content_size = 0;
+        sprintf(w_header, "%d:%ld", W_REQUEST.flag, W_REQUEST.content_size);
+        if(write(client_fd, &w_header, sizeof(w_header)) < 0){
+            perror("write error");
+            return;
+        }
+        return;
+        //invia messaggio di impossibilità di leggere
+    }
+    //calcolo dimensione del file in byte
+    fseek(file, 0, SEEK_END);
+    W_REQUEST.content_size = ftell(file);
+    rewind(file);
+
+    
+    sprintf(w_header, "%d:%ld", W_REQUEST.flag, W_REQUEST.content_size);
+    if(write(client_fd, &w_header, sizeof(w_header)) < 0){
+        perror("write error");
+        return;
+    }
+
+    char flag[2];
+    if (read(client_fd, flag, sizeof(flag)) < 0){
+        perror("impossibile ricevere i dati");
+        return;
+    }
+
+    if (flag[0] == '0'){
+        perror("path inserito non valido");
+        return;
+    }
+    //procedo a leggere il contenuto del file
+    //char *content = (char *)malloc(((W_REQUEST.content_size+1) * sizeof(char)));
+    char buffer[1024] = "";
+    while ((nb_read = fread(buffer, 1, sizeof(buffer), file)) > 0){
+        if (write(client_fd, buffer, nb_read) == -1){
+            perror("send non andata a buon fine");
+        }
+    }
+    fclose(file);
+
+    //mando un segnale di interruzione delle scrittura
+    shutdown(client_fd, SHUT_WR);
+
+    char response[2];
+    if (read(client_fd, response, sizeof(response)) < 0){
+        perror("impossibile ricevere risposta dal server");
+        return;
+    }
+
+    if (response[0] == '0'){
+        perror("impossibile completare la scrittura");
+        return;
+    }
+    printf("scrittura completa con successo\n");
+}
+
+//è sbagliat, non va bene
+int check_path(char *path){
+    //assumo che vengano inseriti o path relativi alla directory attuale o path assoluti
+
+    //prima di tutto vedo se il path esiste
+    struct stat file_stat;
+
+    if (stat(path, &file_stat) != 0){
+        perror("non è un file");
+        return 0; //non è un path valido
+    }
+
+    if (!S_ISREG(file_stat.st_mode)){
+        perror("non è un file regolare");
+        return 0; //non è un file regolare
+    }
+
+    //controllo sia un file .txt
+    char *ext = strrchr(path, '.'); //restituisce il puntatore all'ultima occorrenza di ".", così facendo ricavo l'estensione del file
+    if(ext != NULL && strcmp(ext, ".txt") == 0){
+        return 1; //è un file txt
+    }
+    perror("non è un file txt");
+    return 0;
+}
+
+void do_write(int client_fd){
+    /**
+     * @todo controllare che il path indicato in f_path esista, in caso contrario invia messaggio al server e interrompi connessione
+     * @todo leggere il file se esiste e inviare il contenuto al server
+     * @todo attendere la risposta del server
+     * @todo verificare se la richiesta ha avuto successo o meno
+     * viene ammessa solo la lettura di file .txt
+     */
+
+    /**
+     * L'idea è quella di creare una struct in cui si mettono i dati della richiesta, 
+     * che vengono impostati ad un valore specifico se la richiesta deve essere abortita
+     */
+    
+    W_REQUEST.flag = check_path(THIS_ARGS.f_path);
+
+    read_txt_file(THIS_ARGS.f_path, client_fd);
+
+}
 
 void parse_client_input(int argc, char **argv){
     int op_flag = 0;
@@ -107,7 +216,7 @@ int main(int argc, char *argv[]){
 
     switch(THIS_ARGS.operation){
         case 'w':{
-            //manage w
+            do_write(client_fd);
             break;
         }case 'r':{
             //manage r
@@ -117,6 +226,7 @@ int main(int argc, char *argv[]){
             break;
         }
     }
+    printf("connessione terminata\n");
     close(client_fd);
     return 0;
 }
