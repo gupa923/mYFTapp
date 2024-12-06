@@ -117,6 +117,130 @@ void do_write(int client_fd){
 
 }
 
+void get_read_header(char *header){
+    char *local_copy = malloc(sizeof(char)*strlen(header));
+    strcpy(local_copy, header);
+    char *save_ptr;
+    char *token = strtok_r(local_copy, ":", &save_ptr);
+    int i = 0;
+    while(token != NULL){
+        if (i == 0){
+            R_HEADER.flag = atoi(token);
+            token = strtok_r(NULL, ":", &save_ptr);
+            i++;
+        }else if (i == 1){
+            R_HEADER.file_size = strtol(token, NULL, 10);
+            token = strtok_r(NULL, ":", &save_ptr);
+            i++;
+        }
+    }
+}
+
+int check_dest_path(char *path){
+    //prima vedo se il path fornito è quello di un file txt
+    char *ext = strrchr(path, '.');
+    if (ext == NULL || strcmp(ext, ".txt") != 0){
+        return 0; //il path fornito non è quello di un file
+    }
+
+    //visto che il path è quello di un file .txt vedo se le cartelle precedenti esistono e in caso contrario le creo
+    char *temp = (char *)malloc((strlen(path) + 1) * sizeof(char));
+    if (temp == NULL){
+        perror("impossibile allocare la memoria");
+        return 0;
+    }
+    strcpy(temp, path);
+    char *save_ptr;
+    char *token = strtok_r(temp, "/", &save_ptr);
+    char current_dir[1024] = "";
+    while (token != NULL){
+        //assemblo la directori da analizzare con quelle già analizzateper costruire il path corretto
+        strcat(current_dir, token);
+        strcat(current_dir, "/");
+        //controllo se mi trovo all'ultimo token, ovvero quello che corrisponde al nome del file. Se è l'ultimo allora next_token sarà NULL
+        char *next_token = strtok_r(NULL, "/", &save_ptr);
+        if (next_token != NULL){
+            if (access(current_dir, F_OK) != 0){ //verifico se la directory corrente esiste ( == 0). Se non esiste la creo
+                if (mkdir(current_dir, 0777) != 0){ //creo la directory
+                    perror("errore nella creazione della directory di destinazione");
+                    return 0;
+                }else{
+                    //se entra qui vuol dire che la directory è stata creata con successo
+                }
+            }else{
+                //se entra qui vuol dire che la directory già esisteva
+            }
+        }
+        token = next_token;
+    }
+    free(temp);
+    return 1;
+}
+
+void do_read(int client_fd){
+
+    char header[256];
+    if (read(client_fd, header, sizeof(header)) < 0){
+        perror("impossibile ricevere i dati dal client");
+        return;
+    }
+    get_read_header(header);
+    printf("%d:%ld\n", R_HEADER.flag, R_HEADER.file_size);
+
+    //controllare l'o_path
+    int flag = check_dest_path(THIS_ARGS.o_path);
+
+    char send_signal[2];
+    sprintf(send_signal, "%d", flag);
+    if(write(client_fd, send_signal, sizeof(send_signal)) < 0){
+        perror("errore nella write");
+        return;
+    }
+    if (flag == 0){
+        perror("path di destinazione non valido");
+        return;
+    }
+    printf("path di destinazione valido\n");
+
+    int bytes_recived;
+    char buffer[1024] = "";
+    char *content = (char *)malloc(R_HEADER.file_size);
+    if (content == NULL){
+        perror("impossibile allocare la memoria");
+        return;
+    }
+    memset(content, 0, R_HEADER.file_size * sizeof(char));
+
+    FILE *fp = fopen(THIS_ARGS.o_path, "w");
+    if (fp == NULL){
+        perror("impossibile aprire il file");
+        return;
+    }
+    while(bytes_recived = read(client_fd, buffer, sizeof(buffer)) > 0){
+        strcat(content, buffer);
+    }
+
+    char response[] = "1";
+    if (fputs(content, fp) == EOF){
+        perror("errore di scrittura");
+        response[0] = '0';
+        return;
+    }
+    free(content);
+    fclose(fp);
+
+    if (write(client_fd, response, sizeof(response)) < 0){
+        perror("impossibile inviare una risposta al server");
+        return;
+    }
+
+    if (response[0] == '0'){
+        perror("impossibile completare la lettura");
+        return;
+    }
+    return;
+}
+
 void parse_client_input(int argc, char **argv){
     int op_flag = 0;
     int a_flag = 0, p_flag = 0, f_flag = 0, o_flag = 0;
@@ -219,6 +343,7 @@ int main(int argc, char *argv[]){
             do_write(client_fd);
             break;
         }case 'r':{
+            do_read(client_fd);
             //manage r
             break;
         }case 'l':{

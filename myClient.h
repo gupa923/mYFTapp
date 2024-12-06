@@ -24,6 +24,13 @@ typedef struct write_request{
 
 write_request W_REQUEST;
 
+typedef struct read_header{
+    int flag;
+    long file_size;
+} read_header;
+
+read_header R_HEADER;
+
 char *NO_O_PATH = "____";
 
 void do_write(int client_fd);
