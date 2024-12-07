@@ -140,6 +140,94 @@ void do_write(int *client_fd, client_request *request){
     printf("richiesta completata con successo\n");
 }
 
+int file_exists(char *path){
+    struct stat file_stat;
+
+    if (stat(path, &file_stat) != 0){
+        perror("non è un file");
+        return 0; //non è un path valido
+    }
+
+    if (!S_ISREG(file_stat.st_mode)){
+        perror("non è un file regolare");
+        return 0; //non è un file regolare
+    }
+
+    //controllo sia un file .txt
+    char *ext = strrchr(path, '.'); //restituisce il puntatore all'ultima occorrenza di ".", così facendo ricavo l'estensione del file
+    if(ext != NULL && strcmp(ext, ".txt") == 0){
+        return 1; //è un file txt
+    }
+    perror("non è un file txt");
+    return 0;
+}
+
+void do_read(int *client_fd, client_request *request){
+    //primo compito vedere se il file esiste
+    char *temp = (char *)malloc(strlen(request->f_path) * sizeof(char));
+    strcpy(temp, request->f_path);
+    sprintf(request->f_path, "%s%s", FT_ARGS.root_directory, temp);
+    int flag = file_exists(request->f_path);
+    free(temp);
+
+    //ricavo la dimensione del file
+    long size = 0;
+    char header[256];
+    FILE *fp = fopen(request->f_path, "r");
+    if (fp == NULL){
+        flag = 0;
+        size = 0;
+    }else{
+        fseek(fp, 0, SEEK_END);
+        size = ftell(fp);
+        rewind(fp);
+    }
+
+    sprintf(header, "%d:%ld", flag, size);
+    if (write(*client_fd, header, sizeof(header)) < 0){
+        perror("errore invio dati al client");
+        return;
+    }
+    if (flag == 0){
+        perror("file non esistenete");
+        return;
+    }
+
+    char send_signal[2];
+    if (read(*client_fd, send_signal, sizeof(send_signal)) < 0){
+        perror("erorre nella read");
+        return;
+    }
+    if (send_signal[0] == 0){
+        perror("path di destinazione non valido");
+        return;
+    }
+    printf("path di destinazione valido\n");
+
+    char buffer[1024];
+    int bytes_read;
+    while((bytes_read = fread(buffer, 1, sizeof(buffer), fp)) > 0){
+        if (write(*client_fd, buffer, bytes_read) == -1){
+            perror("write non andata a buon fine");
+        }
+    }
+    fclose(fp);
+
+    shutdown(*client_fd, SHUT_WR);
+
+    char response[2];
+    if (read(*client_fd, response, sizeof(response)) < 0){
+        perror("impossibile ricevere risposta dal client");
+        return;
+    }
+
+    if (response[0] == '0'){
+        perror("impossibile completare la lettura");
+        return;
+    }
+    printf("lettura completa con successo\n");
+}
+
 void get_client_request(char *content, client_request *request){
     char *local_copy = malloc(sizeof(char)*strlen(content));
     char *save_ptr;
@@ -186,6 +274,7 @@ void *accettazione_client(void *args){
             do_write(client_fd, &request);
             break;
         }case 'r':{
+            do_read(client_fd, &request);
             //manage read //nella lettura devo controllare f_path se esiste
             break;
         }case 'l':{
