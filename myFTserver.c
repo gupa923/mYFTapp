@@ -8,6 +8,7 @@
 #include <errno.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <dirent.h>
 #include "myServer.h"
 
 void get_write_header(write_header *header, char *h_string){
@@ -228,6 +229,72 @@ void do_read(int *client_fd, client_request *request){
     printf("lettura completa con successo\n");
 }
 
+void do_list(int *client_fd, client_request *request){
+    /**
+     * @todo verificare la correttezza di f_path
+     * @todo inviare un messaggio al client per indicare che la richiesta può essere eseguita
+     * @todo inviare il contenuto della directory un'entry alla volta
+     * @todo aspettare che il client mandi un messaggio di conferma della ricezione
+     */
+
+    //controllo se la directory è valida
+    char *temp = (char *)malloc(strlen(request->f_path) * sizeof(char));
+    strcpy(temp, request->f_path);
+    sprintf(request->f_path, "%s%s", FT_ARGS.root_directory, temp);
+    free(temp);
+
+    int flag = 1;
+    struct dirent *element;
+    DIR *f_dir = opendir(request->f_path);
+
+    if (f_dir == NULL){
+        printf("directory non esiste\n");
+        flag = 0;
+    }
+
+    char send_flag[2];
+    sprintf(send_flag, "%d", flag);
+    if (write(*client_fd, send_flag, sizeof(send_flag)) < 0){
+        perror("errore nella write");
+        return;
+    }
+
+    if (flag == 0){
+        printf("percorso inserito non valido o non esistente\n");
+        return;
+    }
+
+    //prendo e invio i dati al client
+    while ((element = readdir(f_dir)) != NULL){
+        struct stat info;
+        char temp_path[1024];
+        char send_buffer[1024];
+
+        //ignoro le directory . e .. e i file nascosti
+        if (strncmp(element->d_name, ".", 1) == 0 || strncmp(element->d_name, "..", 2) == 0){
+            continue;
+        }
+
+        sprintf(send_buffer, "%s", element->d_name);
+        //controllo se l'elemento analizzato è una directory
+        sprintf(temp_path, "%s/%s", request->f_path, element->d_name);
+        if (stat(temp_path, &info) == 0 && S_ISDIR(info.st_mode)){
+            sprintf(send_buffer, "<DIRECTORY> %s", element->d_name);
+        }
+
+        if (write(*client_fd, send_buffer, sizeof(send_buffer))<0){
+            perror("write non andata a buon fine");
+        }
+    }
+
+    closedir(f_dir);
+
+    shutdown(*client_fd, SHUT_WR);
+
+    printf("richiesta di listing completata con successo\n");
+    return;
+}
+
 void get_client_request(char *content, client_request *request){
     char *local_copy = malloc(sizeof(char)*strlen(content));
     char *save_ptr;
@@ -278,6 +345,7 @@ void *accettazione_client(void *args){
             //manage read //nella lettura devo controllare f_path se esiste
             break;
         }case 'l':{
+            do_list(client_fd, &request);
             //manage list //nel list devo controllare se esiste f_path
             break;
         }

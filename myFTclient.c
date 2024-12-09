@@ -216,7 +216,7 @@ void do_read(int client_fd){
         perror("impossibile aprire il file");
         return;
     }
-    while(bytes_recived = read(client_fd, buffer, sizeof(buffer)) > 0){
+    while((bytes_recived = read(client_fd, buffer, sizeof(buffer))) > 0){
         strcat(content, buffer);
     }
 
@@ -238,6 +238,40 @@ void do_read(int client_fd){
         perror("impossibile completare la lettura");
         return;
     }
+    return;
+}
+
+void do_list(int client_fd){
+    /**
+     * @todo attendere messaggio per far partire invio dei dati
+     * @todo ricevere i dati e stamparli
+     * @todo inviare messaggio di conferma della lettura e chiudere la connessione
+     */
+    char flag[2];
+    if (read(client_fd, flag, sizeof(flag)) < 0){
+        perror("impossibile ricevere risposta dal client");
+        return;
+    }
+
+    if (flag[0] == '0'){
+        printf("percorso inserito non valido\n");
+        return;
+    }
+
+    char buffer[1024];
+    int bytes_recived;
+    int counter = 0;
+    while ((bytes_recived = read(client_fd, buffer, sizeof(buffer))) > 0){
+        printf("%s\n", buffer);
+        counter++;
+    }
+
+    if (counter == 0){
+        printf("directory vuota\n");
+        return;
+    }
+
+    printf("richiesta di listing completata con successo\n");
     return;
 }
 
@@ -347,6 +381,7 @@ int main(int argc, char *argv[]){
             //manage r
             break;
         }case 'l':{
+            do_list(client_fd);
             //manage list
             break;
         }
