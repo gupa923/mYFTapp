@@ -83,42 +83,43 @@ void do_write(int *client_fd, client_request *request){
         perror("impossibile procedere con la scrittura");
         return;
     }
+    //verifico se il path esiste
     char *temp = (char *)malloc(strlen(request->o_path) * sizeof(char));
     strcpy(temp, request->o_path);
     sprintf(request->o_path, "%s%s", FT_ARGS.root_directory, temp);
     int flag = verify_wpath(request->o_path);
     free(temp);
-    //manca il messaggio al client per dirgli di procedere all'invio dei dati
+    //invio messaggio per indicare se procedere o meno con la richiesta
     char sflag[2];
     sprintf(sflag, "%d", flag);
     if (write(*client_fd, sflag, sizeof(sflag)) < 0){
         perror("impossibile inviare dati");
         return;
     }
-
+    //se flag == 0 allora il percorso di output non è vaildo e chiudo la connessione
     if (flag == 0){
         perror("percorso non valido");
         return;
     }
 
     int bytes_recived;
-    char buffer[1024] = "";
-    char *content = (char *)malloc(header.content_size);
+    char buffer[1024] = ""; //buffer dove salvare temporaneamente le linee del file letto
+    char *content = (char *)malloc(header.content_size); //conterrà l'intero contenuto del file da scrivere
     if (content == NULL){
         perror("impossibile allocare la memoria");
         return;
     }
-    memset(content, 0, header.content_size * sizeof(char));
+    memset(content, 0, header.content_size * sizeof(char)); //imposta tutti i byte di content a 0
 
-    FILE *fp = fopen(request->o_path, "w");
+    FILE *fp = fopen(request->o_path, "w"); //apro il file in lettura, se il file non esiste lo creo
     if (fp == NULL){
         perror("impossibile aprire il file");
         return;
     }
-    while(bytes_recived = read(*client_fd, buffer, sizeof(buffer)) > 0){
+    while(bytes_recived = read(*client_fd, buffer, sizeof(buffer)) > 0){ //leggo riga per riga le stringhe inviate dal client
         strcat(content, buffer);
     }
-
+    //scrivo il contenuto nel file d'output
     char response[] = "1";
     if (fputs(content, fp) == EOF){
         perror("errore di scrittura");
@@ -127,23 +128,23 @@ void do_write(int *client_fd, client_request *request){
     }
     free(content);
     fclose(fp);
-
+    //invio un messaggio al client che conferma che la richiesta è stata completata
     if (write(*client_fd, response, sizeof(response)) < 0){
         perror("impossibile inviare una risposta al client");
         return;
     }
 
-    if (response[0] == '0'){
+    if (response[0] == '0'){ //se non è stato possibile scrivere sul file termino la connessione
         perror("impossibile completare la scrittura");
         return;
     }
-    //codice per indicare che la richiesta è andata a buon 
+    //termino la connessione
     printf("richiesta completata con successo\n");
 }
 
 int file_exists(char *path){
     struct stat file_stat;
-
+    //controllo se il path esiste
     if (stat(path, &file_stat) != 0){
         perror("non è un file");
         return 0; //non è un path valido
@@ -154,7 +155,7 @@ int file_exists(char *path){
         return 0; //non è un file regolare
     }
 
-    //controllo sia un file .txt
+    //controllo sia il path ad un file .txt
     char *ext = strrchr(path, '.'); //restituisce il puntatore all'ultima occorrenza di ".", così facendo ricavo l'estensione del file
     if(ext != NULL && strcmp(ext, ".txt") == 0){
         return 1; //è un file txt
@@ -164,7 +165,7 @@ int file_exists(char *path){
 }
 
 void do_read(int *client_fd, client_request *request){
-    //primo compito vedere se il file esiste
+    //vedo se il file richiesto esiste
     char *temp = (char *)malloc(strlen(request->f_path) * sizeof(char));
     strcpy(temp, request->f_path);
     sprintf(request->f_path, "%s%s", FT_ARGS.root_directory, temp);
@@ -183,45 +184,50 @@ void do_read(int *client_fd, client_request *request){
         size = ftell(fp);
         rewind(fp);
     }
-
+    //invio al client il risultato dei precedenti controlli per indicare se procedere con la richiesta o interrompere la connessione
     sprintf(header, "%d:%ld", flag, size);
     if (write(*client_fd, header, sizeof(header)) < 0){
         perror("errore invio dati al client");
         return;
     }
+    //se flag == 0 allora il percorso non esiste oppure non è un path ad un file .txt quindi devo terminare la connessione
     if (flag == 0){
         perror("file non esistenete");
         return;
     }
 
+    //attendo che il client invii il segnale per iniziare ad inviare i dati
     char send_signal[2];
     if (read(*client_fd, send_signal, sizeof(send_signal)) < 0){
         perror("erorre nella read");
         return;
     }
-    if (send_signal[0] == 0){
+    //se il segnale inviato è 0 allora il client non può ricevere il file e devo quindi interrompere la connessione
+    if (send_signal[0] == 0){  
         perror("path di destinazione non valido");
         return;
     }
     printf("path di destinazione valido\n");
 
-    char buffer[1024];
-    int bytes_read;
-    while((bytes_read = fread(buffer, 1, sizeof(buffer), fp)) > 0){
-        if (write(*client_fd, buffer, bytes_read) == -1){
+    //invio i dati al client
+    char buffer[1024];  //buffer temporaneo
+    int bytes_read; //numero di byte letti dal file
+    while((bytes_read = fread(buffer, 1, sizeof(buffer), fp)) > 0){ //leggo il file riga per riga
+        if (write(*client_fd, buffer, bytes_read) == -1){ //invio al client la riga appena letta
             perror("write non andata a buon fine");
         }
     }
     fclose(fp);
-
+    //invio segnale per interrompere la lettura del client
     shutdown(*client_fd, SHUT_WR);
 
+    //attendo che il client mandi una conferma dell'avvenuta ricezione
     char response[2];
     if (read(*client_fd, response, sizeof(response)) < 0){
         perror("impossibile ricevere risposta dal client");
         return;
     }
-
+    //chiudo la connessione
     if (response[0] == '0'){
         perror("impossibile completare la lettura");
         return;
@@ -230,28 +236,24 @@ void do_read(int *client_fd, client_request *request){
 }
 
 void do_list(int *client_fd, client_request *request){
-    /**
-     * @todo verificare la correttezza di f_path
-     * @todo inviare un messaggio al client per indicare che la richiesta può essere eseguita
-     * @todo inviare il contenuto della directory un'entry alla volta
-     * @todo aspettare che il client mandi un messaggio di conferma della ricezione
-     */
-
     //controllo se la directory è valida
     char *temp = (char *)malloc(strlen(request->f_path) * sizeof(char));
     strcpy(temp, request->f_path);
     sprintf(request->f_path, "%s%s", FT_ARGS.root_directory, temp);
     free(temp);
 
+    //apro la directory
     int flag = 1;
     struct dirent *element;
     DIR *f_dir = opendir(request->f_path);
 
+    //se l'apertura fallisce imposto il flag a 0 
     if (f_dir == NULL){
         printf("directory non esiste\n");
         flag = 0;
     }
 
+    //invio il flag di controllo per dire al clien se si può procedere o meno con l'invio dei dati
     char send_flag[2];
     sprintf(send_flag, "%d", flag);
     if (write(*client_fd, send_flag, sizeof(send_flag)) < 0){
@@ -259,14 +261,14 @@ void do_list(int *client_fd, client_request *request){
         return;
     }
 
-    if (flag == 0){
+    if (flag == 0){ //se il flag è 0 allora la directory non esiste quindi bisogna terminare la connessione
         printf("percorso inserito non valido o non esistente\n");
         return;
     }
 
     //prendo e invio i dati al client
     while ((element = readdir(f_dir)) != NULL){
-        struct stat info;
+        struct stat info; //serve per controllare se l'elemento è un file o una directory
         char temp_path[1024];
         char send_buffer[1024];
 
@@ -282,15 +284,14 @@ void do_list(int *client_fd, client_request *request){
             sprintf(send_buffer, "<DIRECTORY> %s", element->d_name);
         }
 
-        if (write(*client_fd, send_buffer, sizeof(send_buffer))<0){
+        if (write(*client_fd, send_buffer, sizeof(send_buffer))<0){  //invio la stringa con i dati al client
             perror("write non andata a buon fine");
         }
     }
 
+    //chiudu la directory e mando un segnale per terminare la letturadel client. poi termino la connessione
     closedir(f_dir);
-
     shutdown(*client_fd, SHUT_WR);
-
     printf("richiesta di listing completata con successo\n");
     return;
 }
@@ -317,7 +318,7 @@ void get_client_request(char *content, client_request *request){
         }
     }
     free(local_copy);
-    //NON HO BISOGNO DI CONTROLLARE SE LA LETTURA E' aANDATA A BUON FINE POICHÈ HO LA GARANZIA CHE IL CLIENT NON SI CONNETTA SE LA RICHIESTA E' SBAGLIATA
+    //A questo punto ho la garanzia da parte del client che non manchino argomenti
 }
 
 void *accettazione_client(void *args){
@@ -326,16 +327,18 @@ void *accettazione_client(void *args){
     int *client_fd = (int *)args;
     client_request request;
 
+    //ricevo il messaggio contenente la richiesta del client
     if(read(*client_fd, &message, sizeof(message)) < 0){
         perror("impossibi leleggere la richiesta");
         close(*client_fd);
         pthread_exit(NULL);
     }
 
-    
+    //analizzo la richiesta del client
     get_client_request(message, &request);
     printf("lettura della richiesta avvenuta correttamente\n");
 
+    //scelgo la funzione corretta in base all'operazione inserita nella richiesta
     switch(request.op_tag){
         case 'w':{
             do_write(client_fd, &request);
