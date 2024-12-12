@@ -12,7 +12,7 @@
 #include "myServer.h"
 
 void get_write_header(write_header *header, char *h_string){
-    char *local_copy = malloc(sizeof(char)*strlen(h_string));
+    char *local_copy = malloc(sizeof(char)*(strlen(h_string)+1));
     strcpy(local_copy, h_string);
     char *save_ptr;
     char *token = strtok_r(local_copy, ":", &save_ptr);
@@ -84,7 +84,7 @@ void do_write(int *client_fd, client_request *request){
         return;
     }
     //verifico se il path esiste
-    char *temp = (char *)malloc(strlen(request->o_path) * sizeof(char));
+    char *temp = (char *)malloc((strlen(request->o_path) + 1) * sizeof(char));
     strcpy(temp, request->o_path);
     sprintf(request->o_path, "%s%s", FT_ARGS.root_directory, temp);
     int flag = verify_wpath(request->o_path);
@@ -166,7 +166,7 @@ int file_exists(char *path){
 
 void do_read(int *client_fd, client_request *request){
     //vedo se il file richiesto esiste
-    char *temp = (char *)malloc(strlen(request->f_path) * sizeof(char));
+    char *temp = (char *)malloc((strlen(request->f_path) + 1) * sizeof(char));
     strcpy(temp, request->f_path);
     sprintf(request->f_path, "%s%s", FT_ARGS.root_directory, temp);
     int flag = file_exists(request->f_path);
@@ -189,7 +189,7 @@ void do_read(int *client_fd, client_request *request){
     if (write(*client_fd, header, sizeof(header)) < 0){
         perror("errore invio dati al client");
         return;
-    }
+    } 
     //se flag == 0 allora il percorso non esiste oppure non è un path ad un file .txt quindi devo terminare la connessione
     if (flag == 0){
         perror("file non esistenete");
@@ -237,7 +237,7 @@ void do_read(int *client_fd, client_request *request){
 
 void do_list(int *client_fd, client_request *request){
     //controllo se la directory è valida
-    char *temp = (char *)malloc(strlen(request->f_path) * sizeof(char));
+    char *temp = (char *)malloc((strlen(request->f_path) + 1) * sizeof(char));
     strcpy(temp, request->f_path);
     sprintf(request->f_path, "%s%s", FT_ARGS.root_directory, temp);
     free(temp);
@@ -297,7 +297,7 @@ void do_list(int *client_fd, client_request *request){
 }
 
 void get_client_request(char *content, client_request *request){
-    char *local_copy = malloc(sizeof(char)*strlen(content));
+    char *local_copy = malloc(sizeof(char)*(strlen(content) +1));
     char *save_ptr;
     strcpy(local_copy, content);
     char *token = strtok_r(local_copy, ":", &save_ptr);
@@ -357,7 +357,6 @@ void *accettazione_client(void *args){
 
     printf("connessione terminata\n");
     close(*client_fd);
-    pthread_exit(NULL);
 }
 
 void valida_root(char *root_dir){  //verifica se esiste root directory, altrimenti la crea. assumo che il path può essere o assoluto oppure relativo alla cartella contenente il server
@@ -467,7 +466,7 @@ int main(int argc, char *argv[]){
 
         if (MAX_CONCURRENT_CONNECTIONS >= 3){
             for (int i = 0; i < MAX_CONCURRENT_CONNECTIONS; i++){
-                pthread_join(threads[MAX_CONCURRENT_CONNECTIONS], NULL);
+                pthread_join(threads[i], NULL);
             }
             MAX_CONCURRENT_CONNECTIONS = 0;
         }
