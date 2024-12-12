@@ -460,7 +460,8 @@ int main(int argc, char *argv[]){
             continue;
         }
 
-        int *temp_client = &client_fd;
+        int *temp_client = malloc(sizeof(int));
+        *temp_client = client_fd;
         pthread_create(&threads[MAX_CONCURRENT_CONNECTIONS], NULL, accettazione_client,(void *) temp_client);
         MAX_CONCURRENT_CONNECTIONS++;
 
