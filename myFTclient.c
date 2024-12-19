@@ -180,8 +180,6 @@ void do_read(int client_fd){
         return;
     }
     get_read_header(header);
-    printf("%d:%ld\n", R_HEADER.flag, R_HEADER.file_size);
-
     //controllare l'o_path ovvero il percorso di destinazione
     int flag = check_dest_path(THIS_ARGS.o_path);
 

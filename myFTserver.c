@@ -413,6 +413,10 @@ void parse_input(int argc, char **argv){
 }
 
 int main(int argc, char *argv[]){
+
+    pthread_t threads[MAX_CONCURRENT_CONNECTIONS];
+    int thread_num = 0;
+
     parse_input(argc, argv);
     //fare funzione per gestione input
     int port_num = atoi(FT_ARGS.port);
@@ -461,10 +465,10 @@ int main(int argc, char *argv[]){
 
         int *temp_client = malloc(sizeof(int));
         *temp_client = client_fd;
-        pthread_create(&threads[MAX_CONCURRENT_CONNECTIONS], NULL, accettazione_client,(void *) temp_client);
-        MAX_CONCURRENT_CONNECTIONS++;
+        pthread_create(&threads[thread_num], NULL, accettazione_client,(void *) temp_client);
+        thread_num++;
 
-        if (MAX_CONCURRENT_CONNECTIONS >= 3){
+        if (thread_num >= MAX_CONCURRENT_CONNECTIONS){
             for (int i = 0; i < MAX_CONCURRENT_CONNECTIONS; i++){
                 pthread_join(threads[i], NULL);
             }

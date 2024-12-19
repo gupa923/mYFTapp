@@ -35,8 +35,7 @@ typedef struct write_header{
 server_args FT_ARGS;
 
 //LA CONCORRENZA IN TEORIA FUNZIONA MA SAREBBE MEGLIO MODIFICARLA LO FARO? ALLA FINE
-int MAX_CONCURRENT_CONNECTIONS= 3;
-pthread_t threads[3];
+int MAX_CONCURRENT_CONNECTIONS= 8;
 
 char *NO_O_PATH = "____";
 
