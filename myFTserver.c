@@ -11,6 +11,62 @@
 #include <dirent.h>
 #include "myServer.h"
 
+MUTEX_LIST_RECORD *first_list_record = NULL; //puntatore al primo elemento della lista linkata di mutex
+
+pthread_mutex_t list_mutex = PTHREAD_MUTEX_INITIALIZER; //mutex associato alla lista di mutex
+
+pthread_mutex_t *get_file_lock(char *file_name){
+    pthread_mutex_lock(&list_mutex);
+
+    //scorro la lista per trovare il mutex associato al file, se non è presente lo creo
+    MUTEX_LIST_RECORD *current_node = first_list_record;
+    MUTEX_LIST_RECORD *prev = NULL; //puntatore al nodo precedente, se rimane null la lista è vuota
+    while(current_node){
+        if (strcmp(current_node->file_path, file_name) == 0){
+            pthread_mutex_unlock(&list_mutex);
+            return &current_node->file_mutex;
+        }
+        prev = current_node;
+        current_node = current_node->next;
+    }
+
+    //se il mutex non esiste lo creo e lo aggiungo alla lista
+    MUTEX_LIST_RECORD *new_node = (MUTEX_LIST_RECORD *)malloc(sizeof(MUTEX_LIST_RECORD));
+    /*
+    new_node->file_path = (char *)malloc((strlen(file_name) + 1)*sizeof(char));
+    strcpy(new_node->file_path, file_name);
+    */
+    new_node->file_path = strdup(file_name);
+    pthread_mutex_init(&new_node->file_mutex, NULL);
+    new_node->next = NULL;
+
+    //controllo se il nodo creato era il primo
+    if (prev == NULL){
+        first_list_record = new_node;
+    }else{
+        prev->next = new_node;
+    }
+
+    pthread_mutex_unlock(&list_mutex);
+    return &new_node->file_mutex;
+}
+
+void free_mutex_list(){
+    pthread_mutex_lock(&list_mutex);
+
+    MUTEX_LIST_RECORD *current_node = first_list_record;
+    while(current_node){
+        MUTEX_LIST_RECORD *temp = current_node;
+        current_node = temp->next;
+        pthread_mutex_destroy(&temp->file_mutex);
+        free(temp->file_path);
+        free(temp);
+    }
+
+    first_list_record = NULL;
+    pthread_mutex_unlock(&list_mutex);
+}
+
 void get_write_header(write_header *header, char *h_string){
     char *local_copy = malloc(sizeof(char)*(strlen(h_string)+1));
     strcpy(local_copy, h_string);
@@ -111,7 +167,10 @@ void do_write(int *client_fd, client_request *request){
     }
     memset(content, 0, header.content_size * sizeof(char)); //imposta tutti i byte di content a 0
 
-    FILE *fp = fopen(request->o_path, "w"); //apro il file in lettura, se il file non esiste lo creo
+    pthread_mutex_t *file_lock = get_file_lock(request->o_path);
+
+    pthread_mutex_lock(file_lock);
+    FILE *fp = fopen(request->o_path, "w+"); //apro il file in lettura, se il file non esiste lo creo
     if (fp == NULL){
         perror("impossibile aprire il file");
         return;
@@ -128,6 +187,7 @@ void do_write(int *client_fd, client_request *request){
     }
     free(content);
     fclose(fp);
+    pthread_mutex_unlock(file_lock);
     //invio un messaggio al client che conferma che la richiesta è stata completata
     if (write(*client_fd, response, sizeof(response)) < 0){
         perror("impossibile inviare una risposta al client");
@@ -172,6 +232,8 @@ void do_read(int *client_fd, client_request *request){
     int flag = file_exists(request->f_path);
     free(temp);
 
+    pthread_mutex_t *file_lock = get_file_lock(request->f_path);
+    pthread_mutex_lock(file_lock);
     //ricavo la dimensione del file
     long size = 0;
     char header[256];
@@ -218,6 +280,7 @@ void do_read(int *client_fd, client_request *request){
         }
     }
     fclose(fp);
+    pthread_mutex_unlock(file_lock);
     //invio segnale per interrompere la lettura del client
     shutdown(*client_fd, SHUT_WR);
 
@@ -472,10 +535,10 @@ int main(int argc, char *argv[]){
             for (int i = 0; i < MAX_CONCURRENT_CONNECTIONS; i++){
                 pthread_join(threads[i], NULL);
             }
-            MAX_CONCURRENT_CONNECTIONS = 0;
+            thread_num = 0;
         }
     }
-
+    free_mutex_list();
     close(server_flag);
     return 0;
 }

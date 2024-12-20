@@ -207,7 +207,7 @@ void do_read(int client_fd){
     }
     memset(content, 0, R_HEADER.file_size * sizeof(char));
 
-    FILE *fp = fopen(THIS_ARGS.o_path, "w");
+    FILE *fp = fopen(THIS_ARGS.o_path, "w+");
     if (fp == NULL){
         perror("impossibile aprire il file");
         return;
@@ -237,6 +237,7 @@ void do_read(int client_fd){
         perror("impossibile completare la lettura");
         return;
     }
+    printf("richiesta di lettura completata\n");
     return;
 }
 
