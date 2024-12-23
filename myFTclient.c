@@ -7,7 +7,24 @@
 #include <getopt.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <sys/statvfs.h>
 #include "myClient.h"
+
+int is_free_mem(char *file, long size){
+    struct statvfs system_info;
+
+    if (statvfs(file, &system_info) != 0){
+        perror("errore in statvfs");
+        return 0;
+    }
+
+    long long available_space = system_info.f_bavail * system_info.f_frsize;
+
+    if (available_space - size <= 0){
+        return 0;
+    }
+    return 1;
+}
 
 void read_txt_file(char *path, int client_fd){
     int nb_read;
@@ -185,6 +202,10 @@ void do_read(int client_fd){
 
     //invio al server un segnale per indicare che il client è pronto o meno a ricevere i dati
     char send_signal[2];
+    int is_space = is_free_mem(THIS_ARGS.o_path, R_HEADER.file_size);
+    if (flag != 1 || is_space != 1){
+        flag = 0;
+    }
     sprintf(send_signal, "%d", flag);
     if(write(client_fd, send_signal, sizeof(send_signal)) < 0){
         perror("errore nella write");

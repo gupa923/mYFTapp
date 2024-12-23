@@ -8,8 +8,25 @@
 #include <errno.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <sys/statvfs.h>
 #include <dirent.h>
 #include "myServer.h"
+
+int is_free_mem(char *file, long size){
+    struct statvfs system_info;
+
+    if (statvfs(file, &system_info) != 0){
+        perror("errore in statvfs");
+        return 0;
+    }
+
+    long long available_space = system_info.f_bavail * system_info.f_frsize;
+
+    if (available_space - size <= 0){
+        return 0;
+    }
+    return 1;
+}
 
 MUTEX_LIST_RECORD *first_list_record = NULL; //puntatore al primo elemento della lista linkata di mutex
 
@@ -147,6 +164,10 @@ void do_write(int *client_fd, client_request *request){
     free(temp);
     //invio messaggio per indicare se procedere o meno con la richiesta
     char sflag[2];
+    int is_space = is_free_mem(request->o_path, header.content_size);
+    if (flag != 1 || is_space != 1){
+        flag = 0;
+    }
     sprintf(sflag, "%d", flag);
     if (write(*client_fd, sflag, sizeof(sflag)) < 0){
         perror("impossibile inviare dati");
@@ -154,7 +175,7 @@ void do_write(int *client_fd, client_request *request){
     }
     //se flag == 0 allora il percorso di output non è vaildo e chiudo la connessione
     if (flag == 0){
-        perror("percorso non valido");
+        perror("percorso non valido o spazio esaurito");
         return;
     }
 
