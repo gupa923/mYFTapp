@@ -1,0 +1,10 @@
+client creato correttamente
+connessione al server riuscita
+<DIRECTORY> subFolder3
+file6.txt
+file_prova.txt
+file4.txt
+<DIRECTORY> subFolder2
+<DIRECTORY> subFolder
+richiesta di listing completata con successo
+connessione terminata
