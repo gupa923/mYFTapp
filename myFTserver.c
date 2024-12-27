@@ -164,7 +164,7 @@ void do_write(int *client_fd, client_request *request){
     free(temp);
     //invio messaggio per indicare se procedere o meno con la richiesta
     char sflag[2];
-    int is_space = is_free_mem(request->o_path, header.content_size);
+    int is_space = is_free_mem(FT_ARGS.root_directory, header.content_size);
     if (flag != 1 || is_space != 1){
         flag = 0;
     }

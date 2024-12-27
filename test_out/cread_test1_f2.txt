@@ -1,0 +1,5 @@
+client creato correttamente
+connessione al server riuscita
+path di destinazione valido
+richiesta di lettura completata
+connessione terminata

@@ -13,7 +13,7 @@
 int is_free_mem(char *file, long size){
     struct statvfs system_info;
 
-    if (statvfs(file, &system_info) != 0){
+    if (statvfs(".", &system_info) != 0){
         perror("errore in statvfs");
         return 0;
     }
