@@ -8,11 +8,84 @@
 #include <errno.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <sys/statvfs.h>
 #include <dirent.h>
 #include "myServer.h"
 
+int is_free_mem(char *file, long size){
+    struct statvfs system_info;
+
+    if (statvfs(file, &system_info) != 0){
+        perror("errore in statvfs");
+        return 0;
+    }
+
+    long long available_space = system_info.f_bavail * system_info.f_frsize;
+
+    if (available_space - size <= 0){
+        return 0;
+    }
+    return 1;
+}
+
+MUTEX_LIST_RECORD *first_list_record = NULL; //puntatore al primo elemento della lista linkata di mutex
+
+pthread_mutex_t list_mutex = PTHREAD_MUTEX_INITIALIZER; //mutex associato alla lista di mutex
+
+pthread_mutex_t *get_file_lock(char *file_name){
+    pthread_mutex_lock(&list_mutex);
+
+    //scorro la lista per trovare il mutex associato al file, se non è presente lo creo
+    MUTEX_LIST_RECORD *current_node = first_list_record;
+    MUTEX_LIST_RECORD *prev = NULL; //puntatore al nodo precedente, se rimane null la lista è vuota
+    while(current_node){
+        if (strcmp(current_node->file_path, file_name) == 0){
+            pthread_mutex_unlock(&list_mutex);
+            return &current_node->file_mutex;
+        }
+        prev = current_node;
+        current_node = current_node->next;
+    }
+
+    //se il mutex non esiste lo creo e lo aggiungo alla lista
+    MUTEX_LIST_RECORD *new_node = (MUTEX_LIST_RECORD *)malloc(sizeof(MUTEX_LIST_RECORD));
+    /*
+    new_node->file_path = (char *)malloc((strlen(file_name) + 1)*sizeof(char));
+    strcpy(new_node->file_path, file_name);
+    */
+    new_node->file_path = strdup(file_name);
+    pthread_mutex_init(&new_node->file_mutex, NULL);
+    new_node->next = NULL;
+
+    //controllo se il nodo creato era il primo
+    if (prev == NULL){
+        first_list_record = new_node;
+    }else{
+        prev->next = new_node;
+    }
+
+    pthread_mutex_unlock(&list_mutex);
+    return &new_node->file_mutex;
+}
+
+void free_mutex_list(){
+    pthread_mutex_lock(&list_mutex);
+
+    MUTEX_LIST_RECORD *current_node = first_list_record;
+    while(current_node){
+        MUTEX_LIST_RECORD *temp = current_node;
+        current_node = temp->next;
+        pthread_mutex_destroy(&temp->file_mutex);
+        free(temp->file_path);
+        free(temp);
+    }
+
+    first_list_record = NULL;
+    pthread_mutex_unlock(&list_mutex);
+}
+
 void get_write_header(write_header *header, char *h_string){
-    char *local_copy = malloc(sizeof(char)*strlen(h_string));
+    char *local_copy = malloc(sizeof(char)*(strlen(h_string)+1));
     strcpy(local_copy, h_string);
     char *save_ptr;
     char *token = strtok_r(local_copy, ":", &save_ptr);
@@ -84,13 +157,17 @@ void do_write(int *client_fd, client_request *request){
         return;
     }
     //verifico se il path esiste
-    char *temp = (char *)malloc(strlen(request->o_path) * sizeof(char));
+    char *temp = (char *)malloc((strlen(request->o_path) + 1) * sizeof(char));
     strcpy(temp, request->o_path);
     sprintf(request->o_path, "%s%s", FT_ARGS.root_directory, temp);
     int flag = verify_wpath(request->o_path);
     free(temp);
     //invio messaggio per indicare se procedere o meno con la richiesta
     char sflag[2];
+    int is_space = is_free_mem(FT_ARGS.root_directory, header.content_size);
+    if (flag != 1 || is_space != 1){
+        flag = 0;
+    }
     sprintf(sflag, "%d", flag);
     if (write(*client_fd, sflag, sizeof(sflag)) < 0){
         perror("impossibile inviare dati");
@@ -98,7 +175,7 @@ void do_write(int *client_fd, client_request *request){
     }
     //se flag == 0 allora il percorso di output non è vaildo e chiudo la connessione
     if (flag == 0){
-        perror("percorso non valido");
+        perror("percorso non valido o spazio esaurito");
         return;
     }
 
@@ -111,7 +188,10 @@ void do_write(int *client_fd, client_request *request){
     }
     memset(content, 0, header.content_size * sizeof(char)); //imposta tutti i byte di content a 0
 
-    FILE *fp = fopen(request->o_path, "w"); //apro il file in lettura, se il file non esiste lo creo
+    pthread_mutex_t *file_lock = get_file_lock(request->o_path);
+
+    pthread_mutex_lock(file_lock);
+    FILE *fp = fopen(request->o_path, "w+"); //apro il file in lettura, se il file non esiste lo creo
     if (fp == NULL){
         perror("impossibile aprire il file");
         return;
@@ -128,6 +208,7 @@ void do_write(int *client_fd, client_request *request){
     }
     free(content);
     fclose(fp);
+    pthread_mutex_unlock(file_lock);
     //invio un messaggio al client che conferma che la richiesta è stata completata
     if (write(*client_fd, response, sizeof(response)) < 0){
         perror("impossibile inviare una risposta al client");
@@ -166,12 +247,14 @@ int file_exists(char *path){
 
 void do_read(int *client_fd, client_request *request){
     //vedo se il file richiesto esiste
-    char *temp = (char *)malloc(strlen(request->f_path) * sizeof(char));
+    char *temp = (char *)malloc((strlen(request->f_path) + 1) * sizeof(char));
     strcpy(temp, request->f_path);
     sprintf(request->f_path, "%s%s", FT_ARGS.root_directory, temp);
     int flag = file_exists(request->f_path);
     free(temp);
 
+    pthread_mutex_t *file_lock = get_file_lock(request->f_path);
+    pthread_mutex_lock(file_lock);
     //ricavo la dimensione del file
     long size = 0;
     char header[256];
@@ -189,7 +272,7 @@ void do_read(int *client_fd, client_request *request){
     if (write(*client_fd, header, sizeof(header)) < 0){
         perror("errore invio dati al client");
         return;
-    }
+    } 
     //se flag == 0 allora il percorso non esiste oppure non è un path ad un file .txt quindi devo terminare la connessione
     if (flag == 0){
         perror("file non esistenete");
@@ -218,6 +301,7 @@ void do_read(int *client_fd, client_request *request){
         }
     }
     fclose(fp);
+    pthread_mutex_unlock(file_lock);
     //invio segnale per interrompere la lettura del client
     shutdown(*client_fd, SHUT_WR);
 
@@ -237,7 +321,7 @@ void do_read(int *client_fd, client_request *request){
 
 void do_list(int *client_fd, client_request *request){
     //controllo se la directory è valida
-    char *temp = (char *)malloc(strlen(request->f_path) * sizeof(char));
+    char *temp = (char *)malloc((strlen(request->f_path) + 1) * sizeof(char));
     strcpy(temp, request->f_path);
     sprintf(request->f_path, "%s%s", FT_ARGS.root_directory, temp);
     free(temp);
@@ -297,7 +381,7 @@ void do_list(int *client_fd, client_request *request){
 }
 
 void get_client_request(char *content, client_request *request){
-    char *local_copy = malloc(sizeof(char)*strlen(content));
+    char *local_copy = malloc(sizeof(char)*(strlen(content) +1));
     char *save_ptr;
     strcpy(local_copy, content);
     char *token = strtok_r(local_copy, ":", &save_ptr);
@@ -357,7 +441,6 @@ void *accettazione_client(void *args){
 
     printf("connessione terminata\n");
     close(*client_fd);
-    pthread_exit(NULL);
 }
 
 void valida_root(char *root_dir){  //verifica se esiste root directory, altrimenti la crea. assumo che il path può essere o assoluto oppure relativo alla cartella contenente il server
@@ -414,6 +497,10 @@ void parse_input(int argc, char **argv){
 }
 
 int main(int argc, char *argv[]){
+
+    pthread_t threads[MAX_CONCURRENT_CONNECTIONS];
+    int thread_num = 0;
+
     parse_input(argc, argv);
     //fare funzione per gestione input
     int port_num = atoi(FT_ARGS.port);
@@ -460,18 +547,19 @@ int main(int argc, char *argv[]){
             continue;
         }
 
-        int *temp_client = &client_fd;
-        pthread_create(&threads[MAX_CONCURRENT_CONNECTIONS], NULL, accettazione_client,(void *) temp_client);
-        MAX_CONCURRENT_CONNECTIONS++;
+        int *temp_client = malloc(sizeof(int));
+        *temp_client = client_fd;
+        pthread_create(&threads[thread_num], NULL, accettazione_client,(void *) temp_client);
+        thread_num++;
 
-        if (MAX_CONCURRENT_CONNECTIONS >= 3){
+        if (thread_num >= MAX_CONCURRENT_CONNECTIONS){
             for (int i = 0; i < MAX_CONCURRENT_CONNECTIONS; i++){
-                pthread_join(threads[MAX_CONCURRENT_CONNECTIONS], NULL);
+                pthread_join(threads[i], NULL);
             }
-            MAX_CONCURRENT_CONNECTIONS = 0;
+            thread_num = 0;
         }
     }
-
+    free_mutex_list();
     close(server_flag);
     return 0;
 }

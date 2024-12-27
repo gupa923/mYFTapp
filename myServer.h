@@ -6,6 +6,18 @@
 #include <arpa/inet.h>
 #include <pthread.h>
 
+int MAX_CONCURRENT_CONNECTIONS= 8;
+
+typedef struct MUTEX_LIST_RECORD{
+    char *file_path;
+    pthread_mutex_t file_mutex;
+    struct MUTEX_LIST_RECORD *next;
+}MUTEX_LIST_RECORD;
+
+pthread_mutex_t *get_file_lock(char* file_name);
+
+void free_mutex_list();
+
 /**
  * Struct contenete gli argomenti in inputdel server
  */
@@ -34,9 +46,6 @@ typedef struct write_header{
 
 server_args FT_ARGS;
 
-//LA CONCORRENZA IN TEORIA FUNZIONA MA SAREBBE MEGLIO MODIFICARLA LO FARO? ALLA FINE
-int MAX_CONCURRENT_CONNECTIONS= 3;
-pthread_t threads[3];
 
 char *NO_O_PATH = "____";
 
