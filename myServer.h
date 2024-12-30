@@ -6,16 +6,34 @@
 #include <arpa/inet.h>
 #include <pthread.h>
 
+/**
+ * data un file ed il suo peso verifica se c'è abbastanza spazio per memorizzare il file
+ */
+int is_free_mem(char *file, long size);
+
+/**
+ * Numero massimo di thread supportati dal server
+ */
 int MAX_CONCURRENT_CONNECTIONS= 8;
 
+/**
+ * Record della lista linkata che si occupa di associare ad ogni file richiesto un mutex
+ */
 typedef struct MUTEX_LIST_RECORD{
     char *file_path;
     pthread_mutex_t file_mutex;
     struct MUTEX_LIST_RECORD *next;
 }MUTEX_LIST_RECORD;
 
+/**
+ * Data il nome di un file cerca nella lista il record ad esso associato e restituisce il mutex
+ * Se il record non esiste lo crea
+ */
 pthread_mutex_t *get_file_lock(char* file_name);
 
+/**
+ * Libera la memoria dedicata per il mantenimento della lista di lock
+ */
 void free_mutex_list();
 
 /**

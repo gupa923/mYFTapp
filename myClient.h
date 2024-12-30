@@ -6,6 +6,12 @@
 #include <arpa/inet.h>
 #include <getopt.h>
 
+
+/**
+ * data un file ed il suo peso verifica se c'è abbastanza spazio per memorizzare il file
+ */
+int is_free_mem(char *file, long size);
+
 /**
  * Questa struct contiene gli argomenti passati in input al client quando viene eseguito
  * @param operation: l'operazione da eseguire

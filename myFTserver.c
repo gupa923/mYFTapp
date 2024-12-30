@@ -19,7 +19,7 @@ int is_free_mem(char *file, long size){
         perror("errore in statvfs");
         return 0;
     }
-
+    //calcolo spazio disponibile
     long long available_space = system_info.f_bavail * system_info.f_frsize;
 
     if (available_space - size <= 0){
@@ -71,6 +71,7 @@ pthread_mutex_t *get_file_lock(char *file_name){
 void free_mutex_list(){
     pthread_mutex_lock(&list_mutex);
 
+    //cancello tutti i record della lista
     MUTEX_LIST_RECORD *current_node = first_list_record;
     while(current_node){
         MUTEX_LIST_RECORD *temp = current_node;
@@ -188,9 +189,10 @@ void do_write(int *client_fd, client_request *request){
     }
     memset(content, 0, header.content_size * sizeof(char)); //imposta tutti i byte di content a 0
 
-    pthread_mutex_t *file_lock = get_file_lock(request->o_path);
+    pthread_mutex_t *file_lock = get_file_lock(request->o_path); //prende il lock associato al file
 
-    pthread_mutex_lock(file_lock);
+    pthread_mutex_lock(file_lock); //richiede il lock
+
     FILE *fp = fopen(request->o_path, "w+"); //apro il file in lettura, se il file non esiste lo creo
     if (fp == NULL){
         perror("impossibile aprire il file");
@@ -208,7 +210,7 @@ void do_write(int *client_fd, client_request *request){
     }
     free(content);
     fclose(fp);
-    pthread_mutex_unlock(file_lock);
+    pthread_mutex_unlock(file_lock); //rilascia il lock
     //invio un messaggio al client che conferma che la richiesta è stata completata
     if (write(*client_fd, response, sizeof(response)) < 0){
         perror("impossibile inviare una risposta al client");
@@ -402,7 +404,6 @@ void get_client_request(char *content, client_request *request){
         }
     }
     free(local_copy);
-    //A questo punto ho la garanzia da parte del client che non manchino argomenti
 }
 
 void *accettazione_client(void *args){
