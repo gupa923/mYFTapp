@@ -1,9 +1,0 @@
-client creato correttamente
-connessione al server riuscita
-<DIRECTORY> dir2
-file2.txt
-<DIRECTORY> dir
-file_prova.txt
-file_prova2.txt
-richiesta di listing completata con successo
-connessione terminata

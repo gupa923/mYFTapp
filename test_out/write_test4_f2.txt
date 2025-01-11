@@ -1,4 +1,0 @@
-client creato correttamente
-connessione al server riuscita
-scrittura completa con successo
-connessione terminata

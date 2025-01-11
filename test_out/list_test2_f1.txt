@@ -1,8 +1,0 @@
-client creato correttamente
-connessione al server riuscita
-<DIRECTORY> folder4
-file_bo.txt
-file_prova.txt
-<DIRECTORY> folder2
-richiesta di listing completata con successo
-connessione terminata
