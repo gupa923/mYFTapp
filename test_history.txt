@@ -1,0 +1,102 @@
+///////////////////////////  test write seriale
+
+./myFTclient -w -a 127.0.0.1 -p 12000 -f source_file/file1.txt -o folder1/file1.txt
+
+./myFTclient -w -a 127.0.0.1 -p 12000 -f source_file/file2.txt -o folder1/file2.txt
+
+./myFTclient -w -a 127.0.0.1 -p 12000 -f source_file/file3.txt -o folder1/file3.txt
+
+/////////////////////////// test write seriale senza -o
+
+./myFTclient -w -a 127.0.0.1 -p 12000 -f source_file/file1.txt 
+
+./myFTclient -w -a 127.0.0.1 -p 12000 -f source_file/file2.txt 
+
+./myFTclient -w -a 127.0.0.1 -p 12000 -f source_file/file3.txt 
+
+////////////////////////// test read seriale
+
+./myFTclient -r -a 127.0.0.1 -p 12000 -f source_file/file1.txt -o dest_dir/file1.txt
+
+./myFTclient -r -a 127.0.0.1 -p 12000 -f source_file/file2.txt -o dest_dir/file2.txt
+
+./myFTclient -r -a 127.0.0.1 -p 12000 -f source_file/file3.txt -o dest_dir/file3.txt
+
+////////////////////////// test read seriale senza -o
+
+./myFTclient -r -a 127.0.0.1 -p 12000 -f folder1/file1.txt 
+
+./myFTclient -r -a 127.0.0.1 -p 12000 -f folder1/file2.txt 
+
+./myFTclient -r -a 127.0.0.1 -p 12000 -f folder1/file3.txt 
+
+////////////////////////// test parallel write
+
+./myFTclient -w -a 127.0.0.1 -p 12000 -f source_file/file1.txt -o p_folder1/file1.txt &
+
+./myFTclient -w -a 127.0.0.1 -p 12000 -f source_file/file2.txt -o p_folder1/file2.txt &
+
+./myFTclient -w -a 127.0.0.1 -p 12000 -f source_file/file3.txt -o p_folder1/file3.txt 
+
+////////////////////////// test parallel write write on same file
+
+./myFTclient -w -a 127.0.0.1 -p 12000 -f source_file/file1.txt -o p_folder1/file4.txt &
+
+./myFTclient -w -a 127.0.0.1 -p 12000 -f source_file/file2.txt -o p_folder1/file4.txt &
+
+./myFTclient -w -a 127.0.0.1 -p 12000 -f source_file/file3.txt -o p_folder1/file4.txt 
+
+////////////////////////// test 2 parallel write write on same file 
+
+./myFTclient -w -a 127.0.0.1 -p 12000 -f source_file/file1.txt -o p_folder1/file5.txt &
+
+./myFTclient -w -a 127.0.0.1 -p 12000 -f source_file/file3.txt -o p_folder1/file5.txt &
+
+./myFTclient -w -a 127.0.0.1 -p 12000 -f source_file/file2.txt -o p_folder1/file5.txt 
+
+////////////////////////// test parallel read
+
+./myFTclient -r -a 127.0.0.1 -p 12000 -f source_file/file1.txt -o p_dest_dir/file1.txt &
+
+./myFTclient -r -a 127.0.0.1 -p 12000 -f source_file/file2.txt -o p_dest_dir/file2.txt &
+
+./myFTclient -r -a 127.0.0.1 -p 12000 -f source_file/file3.txt -o p_dest_dir/file3.txt
+
+///////////////////////// test parallel read read on same file
+
+./myFTclient -r -a 127.0.0.1 -p 12000 -f source_file/file1.txt -o p_dest_dir/file4.txt &
+
+./myFTclient -r -a 127.0.0.1 -p 12000 -f source_file/file1.txt -o p_dest_dir/file5.txt &
+
+./myFTclient -r -a 127.0.0.1 -p 12000 -f source_file/file1.txt -o p_dest_dir/file6.txt
+
+/////////////////////// test serial listing
+
+./myFTclient -l -a 127.0.0.1 -p 12000 -f folder1/
+
+./myFTclient -l -a 127.0.0.1 -p 12000 -f p_folder1/ 
+
+./myFTclient -l -a 127.0.0.1 -p 12000 -f source_file/ 
+
+/////////////////////// test parallel listing
+
+./myFTclient -l -a 127.0.0.1 -p 12000 -f folder1/ &
+
+./myFTclient -l -a 127.0.0.1 -p 12000 -f p_folder1/ &
+
+./myFTclient -l -a 127.0.0.1 -p 12000 -f source_file/ 
+
+////////////////////// test read write parallel 1
+
+./myFTclient -w -a 127.0.0.1 -p 12000 -f source_file/file2.txt -o p_folder1/file1.txt &
+
+./myFTclient -r -a 127.0.0.1 -p 12000 -f p_folder1/file1.txt -o p_dest_dir/file1.txt 
+
+///////////////////// test read write parallel 2
+
+./myFTclient -r -a 127.0.0.1 -p 12000 -f p_folder1/file2.txt -o p_dest_dir/file7.txt &
+
+./myFTclient -w -a 127.0.0.1 -p 12000 -f source_file/file1.txt -o p_folder1/file2.txt &
+
+./myFTclient -r -a 127.0.0.1 -p 12000 -f p_folder1/file2.txt -o p_dest_dir/file8.txt 
+
