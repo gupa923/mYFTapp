@@ -96,7 +96,4 @@
 
 ./myFTclient -r -a 127.0.0.1 -p 12000 -f p_folder1/file2.txt -o p_dest_dir/file7.txt &
 
-./myFTclient -w -a 127.0.0.1 -p 12000 -f source_file/file1.txt -o p_folder1/file2.txt &
-
-./myFTclient -r -a 127.0.0.1 -p 12000 -f p_folder1/file2.txt -o p_dest_dir/file8.txt 
-
+./myFTclient -w -a 127.0.0.1 -p 12000 -f source_file/file3.txt -o p_folder1/file2.txt 

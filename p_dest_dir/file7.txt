@@ -1,5 +1,4 @@
 file
 prova
 test
-2
-riga in più
+1
